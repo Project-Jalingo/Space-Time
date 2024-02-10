@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7F0A63062B77A2A5007DACAA /* globe.png in Resources */ = {isa = PBXBuildFile; fileRef = 7F0A63052B77A2A5007DACAA /* globe.png */; };
+		7F0A63082B77A2B7007DACAA /* stars.jpeg in Resources */ = {isa = PBXBuildFile; fileRef = 7F0A63072B77A2B6007DACAA /* stars.jpeg */; };
+		7F0A630A2B77A2C5007DACAA /* ColorMap.png in Resources */ = {isa = PBXBuildFile; fileRef = 7F0A63092B77A2C5007DACAA /* ColorMap.png */; };
 		7FC497752AE9719700667A87 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 7FC497742AE9719700667A87 /* RealityKitContent */; };
 		7FC497772AE9719700667A87 /* Space_TimeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC497762AE9719700667A87 /* Space_TimeApp.swift */; };
 		7FC497792AE9719700667A87 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC497782AE9719700667A87 /* ContentView.swift */; };
@@ -17,6 +20,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		7F0A63052B77A2A5007DACAA /* globe.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = globe.png; sourceTree = "<group>"; };
+		7F0A63072B77A2B6007DACAA /* stars.jpeg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = stars.jpeg; sourceTree = "<group>"; };
+		7F0A63092B77A2C5007DACAA /* ColorMap.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ColorMap.png; sourceTree = "<group>"; };
 		7FC4976F2AE9719700667A87 /* Space Time.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Space Time.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		7FC497732AE9719700667A87 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 		7FC497762AE9719700667A87 /* Space_TimeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Space_TimeApp.swift; sourceTree = "<group>"; };
@@ -67,6 +73,9 @@
 				7FC4977C2AE9719700667A87 /* Shaders.metal */,
 				7FC4977E2AE9719700667A87 /* ShaderTypes.h */,
 				7FC497822AE9719800667A87 /* Assets.xcassets */,
+				7F0A63092B77A2C5007DACAA /* ColorMap.png */,
+				7F0A63072B77A2B6007DACAA /* stars.jpeg */,
+				7F0A63052B77A2A5007DACAA /* globe.png */,
 				7FC497842AE9719800667A87 /* Info.plist */,
 				7FC4977F2AE9719700667A87 /* Preview Content */,
 			);
@@ -150,8 +159,11 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7F0A630A2B77A2C5007DACAA /* ColorMap.png in Resources */,
+				7F0A63062B77A2A5007DACAA /* globe.png in Resources */,
 				7FC497832AE9719800667A87 /* Assets.xcassets in Resources */,
 				7FC497812AE9719700667A87 /* Preview Assets.xcassets in Resources */,
+				7F0A63082B77A2B7007DACAA /* stars.jpeg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -301,6 +301,13 @@ struct VertexOut {
     float3 RayDir;
 };
 
+
+//struct Uniforms {
+//    float4x4 modelViewMatrix;
+//    float4x4 projectionMatrix;
+//    float time;
+//};
+
 struct PoseConstants {
     float4x4 projectionMatrix;
     float4x4 viewMatrix;
@@ -311,33 +318,36 @@ struct InstanceConstants {
     float4x4 modelMatrix;
 };
 
-vertex VertexOut vertex_main(const VertexIn in [[stage_in]],
-                             constant PoseConstants &pose [[buffer(0)]],
-                             constant InstanceConstants &environment [[buffer(1)]],
-                             constant float &time [[buffer(2)]]) {
+vertex VertexOut vertexShader(const VertexIn in [[stage_in]],
+                              constant Uniforms &uniforms [[buffer(0)]]){
+                             //constant PoseConstants &pose [[buffer(0)]],
+                             //constant InstanceConstants &environment [[buffer(1)]],
+                             //constant float &time [[buffer(2)]]) {
     VertexOut out;
     // Transform vertex positions to clip space
-    out.position = pose.projectionMatrix * pose.viewMatrix * float4(in.position, 1.0f);
-    out.RayOri = pose.cameraPosition;
-    out.RayDir = normalize(out.RayOri - float3(0.0, 0.0, 1.0)); // Example direction
+    out.position = uniforms.projectionMatrix * uniforms.modelViewMatrix * float4(in.position, 1.0f);
+    out.RayOri = float3(0.0);//pose.cameraPosition;//shouldn;t this be inverse of view matrix?
+    out.RayDir = normalize(out.RayOri - float3(0.0, 0.0, 0.0)); // Example direction
     return out;
 }
 
 
-fragment float4 fragment_main(VertexOut in [[stage_in]],
-                              constant float &time [[buffer(0)]],
-                              texture2d<float> iChannel0 [[texture(0)]],
+fragment float4 fragmentShader(VertexOut in [[stage_in]],
+                               constant Uniforms &uniforms [[buffer(0)]],
+                               
+                              texture2d<float> iChannel0 [[texture(2)]],
                               texture2d<float> iChannel1 [[texture(1)]]) {
     
     float4 finalColor = float4(0,0,0,1);
-    float zo = 1.0 + smoothstep( 5.0, 15.0, abs(time-48.0) );
-    float an = 3.0 + 0.05 * time;
+    float zo = 1.0 + smoothstep( 5.0, 15.0, abs(uniforms.time-48.0) );
+    float an = 3.0 + 0.05 * uniforms.time;
     float3 ro = zo*float3( 2.0 * cos(an), 1.0, 2.0*sin(an) );
     float3 rt = float3( 1.0, 0.0, 0.0 );
     float3x3 cam = setCamera( ro, rt, 0.35 );
     sampler sam;
-    finalColor.xyz = render(in.RayOri, in.RayDir, iChannel0, iChannel1, sam, time);
-    return finalColor;
+    finalColor.xyz = render(in.RayOri, in.RayDir, iChannel0, iChannel1, sam, uniforms.time);
+    //return finalColor;
+    return float4(1.0,0,0,1);
 }
 
 

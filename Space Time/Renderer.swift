@@ -38,6 +38,8 @@ class Renderer {
     
     var iChannel1: MTLTexture // Stars
     
+    var startTime: TimeInterval = CACurrentMediaTime()
+
     
     let inFlightSemaphore = DispatchSemaphore(value: maxBuffersInFlight)
 
@@ -83,7 +85,9 @@ class Renderer {
         depthStateDescriptor.depthCompareFunction = MTLCompareFunction.greater
         depthStateDescriptor.isDepthWriteEnabled = true
         self.depthState = device.makeDepthStencilState(descriptor:depthStateDescriptor)!
-
+        
+                      
+                      
         do {
             mesh = try Renderer.buildMesh(device: device, mtlVertexDescriptor: mtlVertexDescriptor)
         } catch {
@@ -99,13 +103,13 @@ class Renderer {
         do {
             iChannel0 = try Renderer.loadTexturePNG(device: device, textureName: "globe")
         } catch {
-            fatalError("Unable to load texture. Error info: \(error)")
+            fatalError("Unable to load globe. Error info: \(error)")
         }
         
         do {
             iChannel1 = try Renderer.loadTextureJPG(device: device, textureName: "stars")
         } catch {
-            fatalError("Unable to load texture. Error info: \(error)")
+            fatalError("Unable to load stars. Error info: \(error)")
         }
         
         
@@ -272,8 +276,8 @@ class Renderer {
         let textureLoader = MTKTextureLoader(device: device)
 
         // Ensure the texture is in the app's main bundle
-        guard let url = Bundle.main.url(forResource: textureName, withExtension: "jpg") else {
-            throw NSError(domain: "TextureLoader", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to locate \(textureName).jpg in the main bundle."])
+        guard let url = Bundle.main.url(forResource: textureName, withExtension: "jpeg") else {
+            throw NSError(domain: "TextureLoader", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to locate \(textureName).jpeg in the main bundle."])
         }
 
         // Options for the texture
@@ -307,13 +311,17 @@ class Renderer {
     private func updateGameState(drawable: LayerRenderer.Drawable, deviceAnchor: DeviceAnchor?) {
         /// Update any game state before rendering
         
+        
+        let currentTime = CACurrentMediaTime()
+        let elapsedTime = Float(currentTime - self.startTime)
+        
         let rotationAxis = SIMD3<Float>(1, 1, 0)
         let modelRotationMatrix = matrix4x4_rotation(radians: rotation, axis: rotationAxis)
         let modelTranslationMatrix = matrix4x4_translation(0.0, 0.0, -8.0)
         let modelMatrix = modelTranslationMatrix * modelRotationMatrix
         
         let simdDeviceAnchor = deviceAnchor?.originFromAnchorTransform ?? matrix_identity_float4x4
-
+        
         func uniforms(forViewIndex viewIndex: Int) -> Uniforms {
             let view = drawable.views[viewIndex]
             let viewMatrix = (simdDeviceAnchor * view.transform).inverse
@@ -325,10 +333,10 @@ class Renderer {
                                                    farZ: Double(drawable.depthRange.x),
                                                    reverseZ: true)
             
-            return Uniforms(projectionMatrix: .init(projection), modelViewMatrix: viewMatrix * modelMatrix)
+            return Uniforms(projectionMatrix: .init(projection), modelViewMatrix: viewMatrix * modelMatrix, time: elapsedTime)
         }
         
-        self.uniforms[0].uniforms.0 = uniforms(forViewIndex: 0)
+            self.uniforms[0].uniforms.0 = uniforms(forViewIndex: 0)
         if drawable.views.count > 1 {
             self.uniforms[0].uniforms.1 = uniforms(forViewIndex: 1)
         }
@@ -432,7 +440,12 @@ class Renderer {
             }
         }
         
-        renderEncoder.setFragmentTexture(colorMap, index: TextureIndex.color.rawValue)
+        renderEncoder.setFragmentBuffer(dynamicUniformBuffer, offset: uniformBufferOffset, index: 0)
+        
+        renderEncoder.setFragmentTexture(colorMap, index: 0)
+        renderEncoder.setFragmentTexture(iChannel1, index: 1)//stars
+        renderEncoder.setFragmentTexture(iChannel0, index: 2)//globe
+
         
         for submesh in mesh.submeshes {
             renderEncoder.drawIndexedPrimitives(type: submesh.primitiveType,

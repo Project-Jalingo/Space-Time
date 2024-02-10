@@ -40,6 +40,8 @@ typedef NS_ENUM(EnumBackingType, VertexAttribute)
 typedef NS_ENUM(EnumBackingType, TextureIndex)
 {
     TextureIndexColor = 0, // Color texture.
+    TextureIndexStars = 1,
+    TextureIndexGlobe = 2
 };
 
 // Structure for transformation matrices used in vertex shading.
@@ -47,6 +49,7 @@ typedef struct
 {
     matrix_float4x4 projectionMatrix; // Projection matrix for 3D projection.
     matrix_float4x4 modelViewMatrix;  // Model-view matrix for model transformation and camera view.
+    float time;
 } Uniforms;
 
 // Array of Uniforms structures to support multiple transformation matrices.
