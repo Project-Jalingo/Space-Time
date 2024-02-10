@@ -17,18 +17,6 @@ using namespace metal;
 #define AB 2
 
 
-//typedef struct
-//{
-//    float3 position [[attribute(VertexAttributePosition)]];
-//    float2 texCoord [[attribute(VertexAttributeTexcoord)]];
-//} Vertex;
-//
-//typedef struct
-//{
-//    float4 position [[position]];
-//    float2 texCoord;
-//} ColorInOut;
-
 struct Vertex{
     float3 position [[attribute(VertexAttributePosition)]];
     float2 texCoord [[attribute(VertexAttributeTexcoord)]];
@@ -40,19 +28,6 @@ struct ColorInOut{
     float2 texCoord;
 };
 
-
-
-//fragment float4 fragmentShader(ColorInOut in [[stage_in]],
-//                               texture2d<half> colorMap     [[ texture(TextureIndexColor) ]])
-//{
-//    constexpr sampler colorSampler(mip_filter::linear,
-//                                   mag_filter::linear,
-//                                   min_filter::linear);
-//
-//    half4 colorSample   = colorMap.sample(colorSampler, in.texCoord.xy);
-//
-//    return float4(colorSample);
-//}
 
 
 float4 returnSPH1(){
@@ -310,81 +285,159 @@ float3x3 setCamera(  float3 ro,  float3 rt,  float cr )
 }
 
 
-vertex ColorInOut vertexShader(Vertex in [[stage_in]],
-                               ushort amp_id [[amplification_id]],
-                               constant UniformsArray & uniformsArray [[ buffer(BufferIndexUniforms) ]])
-{
-    ColorInOut out;
 
-    Uniforms uniforms = uniformsArray.uniforms[amp_id];
-    
-    float4 position = float4(in.position, 1.0);
-    out.position = uniforms.projectionMatrix * uniforms.modelViewMatrix * position;
-    
-    
-    out.texCoord = in.texCoord;
 
+
+struct VertexIn {
+    float3 position  [[attribute(0)]];
+    float3 normal    [[attribute(1)]];
+    float2 texCoords [[attribute(2)]];};
+
+struct VertexOut {
+    float4 position [[position]];
+    float2 texCoords;
+    float3 modelNormal;//??
+    float3 RayOri;
+    float3 RayDir;
+};
+
+struct PoseConstants {
+    float4x4 projectionMatrix;
+    float4x4 viewMatrix;
+    float3 cameraPosition;
+};
+
+struct InstanceConstants {
+    float4x4 modelMatrix;
+};
+
+vertex VertexOut vertex_main(const VertexIn in [[stage_in]],
+                             constant PoseConstants &pose [[buffer(0)]],
+                             constant InstanceConstants &environment [[buffer(1)]],
+                             constant float &time [[buffer(2)]]) {
+    VertexOut out;
+    // Transform vertex positions to clip space
+    out.position = pose.projectionMatrix * pose.viewMatrix * float4(in.position, 1.0f);
+    out.RayOri = pose.cameraPosition;
+    out.RayDir = normalize(out.RayOri - float3(0.0, 0.0, 1.0)); // Example direction
     return out;
 }
 
-fragment float4 fragmentShader(ColorInOut input [[stage_in]],
-               texture2d<float> iChannel0 [[texture(0)]],
-               texture2d<float> iChannel1 [[texture(1)]],
-               sampler sam [[sampler(0)]],
-                constant float &iTime [[buffer(0)]], //cuurent time in seconds
-                constant float2 &iResolution [[buffer(1)]], //it seems this should be float3
-               constant int &iFrame [[buffer(2)]])
-{
-    float3 accumulatedColor = float3(0.0);
-    
-    
-    // number of samples per axis for antialiasing, adjust as needed
-    int ZERO = min(iFrame,0); //use whichever is lower between 0 and iFrame
-    
-    for( int sampleX = ZERO; sampleX < AA; ++sampleX){
-        for( int sampleY = ZERO; sampleY < AA; ++sampleY){
-            
-            //calculate the offset for the current sub-pixel
-            float2 subPixelOffset = float2(float(sampleX),float(sampleY)) / float(AA) - 0.5;
-            
-            
-            //adjust coords with sub
-            float2 adjustedCoordinates = (2.0 * (input.texCoord + subPixelOffset) - iResolution) / iResolution.y;
-            
-            float3 rayDirection = normalize(float3(adjustedCoordinates, -2.0));
-            
-            float3 rayOrigin;
-            
-            accumulatedColor += render(rayOrigin,rayDirection,iChannel0,iChannel1,sam,iTime);
-            
-            
-        }
-    }
-    
-    //avergae color from all samples
-    accumulatedColor /= float(AA * AA);
-    
-    float2 normalizedCoordinates = input.texCoord/iResolution;
-    accumulatedColor * = 0.2 + 0.8 * pow(16.0, normalizedCoordinates.x *normalizedCoordinates.y * (1.0 - normalizedCoordinates.x) * 91.0 - normalizedCoordinates.y),0.1);
 
-    {
-        // pixel coordinates
-        float2 o = float2(float(m),float(n)) / float(AA) - 0.5;
-        float2 p = ((2 * input.texCoord)-1); // (2.0*(fragCoord+o)-iResolution.xy)/iResolution.y;
-        float zo = 1.0 + smoothstep( 5.0, 15.0, abs(iTime - 48.0) );
-        float an = 3.0 + 0.05* iTime + 6.0 * cameraPosition;//iMouse.x/iResolution.x;
-        float3 ro = zo * float3(2.0 * cos(an), 1.0, 2.0 * sin(an));
-        float3 rt = float3( 1.0, 0.0, 0.0 );
-        mat3 cam = setCamera( ro, rt, 0.35 );
-        float3 rd = normalize( cam * float3( p, -2.0) );
-        col += render( ro, rd ); //ray origin and ray direction returns color based on light, shadow, relections e.t.c.
-    }
+fragment float4 fragment_main(VertexOut in [[stage_in]],
+                              constant float &time [[buffer(0)]],
+                              texture2d<float> iChannel0 [[texture(0)]],
+                              texture2d<float> iChannel1 [[texture(1)]]) {
     
-    col /= float(AA*AA);
-    float2 q = fragCoord / iResolution.xy;
-    
-    col *= 0.2 + 0.8*pow( 16.0*q.x*q.y*(1.0-q.x)*(1.0-q.y), 0.1 );
-    
-    fragColor = float4( col, 1.0 );
+    float4 finalColor = float4(0,0,0,1);
+    float zo = 1.0 + smoothstep( 5.0, 15.0, abs(time-48.0) );
+    float an = 3.0 + 0.05 * time;
+    float3 ro = zo*float3( 2.0 * cos(an), 1.0, 2.0*sin(an) );
+    float3 rt = float3( 1.0, 0.0, 0.0 );
+    float3x3 cam = setCamera( ro, rt, 0.35 );
+    sampler sam;
+    finalColor.xyz = render(in.RayOri, in.RayDir, iChannel0, iChannel1, sam, time);
+    return finalColor;
 }
 
+
+
+//vertex ColorInOut vertexShader(Vertex in [[stage_in]],
+//                               ushort amp_id [[amplification_id]],
+//                               constant UniformsArray & uniformsArray [[ buffer(BufferIndexUniforms) ]])
+//{
+//    ColorInOut out;
+//
+//    Uniforms uniforms = uniformsArray.uniforms[amp_id];
+//
+//    float4 position = float4(in.position, 1.0);
+//    out.position = uniforms.projectionMatrix * uniforms.modelViewMatrix * position;
+//
+//
+//    out.texCoord = in.texCoord;
+//
+//    return out;
+//}
+//
+//fragment float4 fragmentShader(ColorInOut input [[stage_in]],
+//               texture2d<float> iChannel0 [[texture(0)]],
+//               texture2d<float> iChannel1 [[texture(1)]],
+//               sampler sam [[sampler(0)]],
+//                constant float &iTime [[buffer(0)]], //cuurent time in seconds
+//                constant float2 &iResolution [[buffer(1)]], //it seems this should be float3
+//               constant int &iFrame [[buffer(2)]])
+//{
+//    float3 accumulatedColor = float3(0.0);
+//
+//
+//    // number of samples per axis for antialiasing, adjust as needed
+//    int ZERO = min(iFrame,0); //use whichever is lower between 0 and iFrame
+//
+//    for( int sampleX = ZERO; sampleX < AA; ++sampleX){
+//        for( int sampleY = ZERO; sampleY < AA; ++sampleY){
+//
+//            //calculate the offset for the current sub-pixel
+//            //float2 subPixelOffset = float2(float(sampleX),float(sampleY)) / float(AA) - 0.5;
+//
+//            // Calculate sub-pixel offset for anti-aliasing
+//            float2 subPixelOffset = (float2(sampleX, sampleY) + 0.5) / float(AA) - 0.5;
+//
+//            //adjust coords with sub
+////            float2 adjustedCoordinates = (2.0 * (input.texCoord + subPixelOffset) - iResolution) / iResolution.y;
+//
+//
+//            // Adjust texture coordinates with sub-pixel offset and normalize
+//                        float2 adjustedCoordinates = (2.0 * (input.texCoord + subPixelOffset) - 1.0) * float2(iResolution.x / iResolution.y, 1.0);
+//
+//
+////            float3 rayDirection = normalize(float3(adjustedCoordinates, -2.0));
+//
+//            // Calculate ray direction for current sub-pixel
+//            float3 rayDirection = normalize(float3(adjustedCoordinates, -1.0));
+//
+//            //float3 rayOrigin;
+//
+//            // Define or calculate the ray origin based on your scene setup
+//            // This example assumes a fixed origin for simplicity
+//            float3 rayOrigin = float3(0.0, 0.0, 5.0); // Example origin
+//
+//            //accumulatedColor += render(rayOrigin,rayDirection,iChannel0,iChannel1,sam,iTime);
+//            // Accumulate color from rendering function
+//            accumulatedColor += render(rayOrigin, rayDirection, iChannel0, iChannel1, sam, iTime);
+//        }
+//    }
+//
+//    // Average the accumulated color by the number of samples
+//    accumulatedColor /= float(AA * AA);
+//
+//    // Apply a simple vignette effect based on texture coordinates to reduce brightness at the edges
+//    float2 normalizedCoordinates = input.texCoord/iResolution;
+////    accumulatedColor * = 0.2 + 0.8 * pow(16.0, normalizedCoordinates.x *normalizedCoordinates.y * (1.0 - normalizedCoordinates.x) * 91.0 - normalizedCoordinates.y),0.1);
+//
+//    float vignette = 0.2 + 0.8 * pow(16.0 * normalizedCoordinates.x * normalizedCoordinates.y * (1.0 - normalizedCoordinates.x) * (1.0 - normalizedCoordinates.y), 0.1);
+//    accumulatedColor *= vignette;
+//
+//
+//    // Convert the accumulated linear color to sRGB space before output
+//    float4 outputColor = float4(pow(accumulatedColor, 1.0/2.2), 1.0);//this should be skipped later
+//    return outputColor;// so should this
+//
+//    {
+//        // pixel coordinates
+//        float2 o = float2(float(m),float(n)) / float(AA) - 0.5;
+//        float2 p = ((2 * input.texCoord)-1); // (2.0*(fragCoord+o)-iResolution.xy)/iResolution.y;
+//        float zo = 1.0 + smoothstep( 5.0, 15.0, abs(iTime - 48.0) );
+//        float an = 3.0 + 0.05* iTime + 6.0 * cameraPosition;//iMouse.x/iResolution.x;
+//        float3 ro = zo * float3(2.0 * cos(an), 1.0, 2.0 * sin(an));
+//        float3 rt = float3( 1.0, 0.0, 0.0 );
+//        mat3 cam = setCamera( ro, rt, 0.35 );
+//        float3 rd = normalize( cam * float3( p, -2.0) );
+//        col += render( ro, rd ); //ray origin and ray direction returns color based on light, shadow, relections e.t.c.
+//    }
+//
+//    col /= float(AA*AA);
+//    float2 q = fragCoord / iResolution.xy;
+//    col *= 0.2 + 0.8*pow( 16.0*q.x*q.y*(1.0-q.x)*(1.0-q.y), 0.1 );
+//    fragColor = float4( col, 1.0 );
+//
+//}
