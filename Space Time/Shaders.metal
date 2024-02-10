@@ -220,7 +220,7 @@ float3 render( float3 ro, float3 rd ,texture2d<float> iChannel0, texture2d<float
         float los = smoothstep(0.45,0.46, l);
         mat = mix( sea, land, los );
 
-        float3 wrap = -1.0 + 2.0*fancyCube( iChannel1,sam, tnor2.xzy, 0.025, 0.0 ).xyz;
+        float3 wrap = -1.0 + 2.0 * fancyCube( iChannel1,sam, tnor2.xzy, 0.025, 0.0 ).xyz;
         float cc1 = fancyCube( iChannel1,sam, tnor2 + 0.2*wrap, 0.05, 0.0 ).y;
         float clouds = smoothstep( 0.3, 0.6, cc1 );
 
@@ -269,7 +269,6 @@ float3 render( float3 ro, float3 rd ,texture2d<float> iChannel0, texture2d<float
         glo += 0.6*float3(0.8,0.9,1.0)*0.4*exp(-100.0*abs(d));
         col += glo*1.5;
     }
-    
     col *= smoothstep( 0.0, 6.0, iTime );
 
     return col;
@@ -334,7 +333,6 @@ vertex VertexOut vertexShader(const VertexIn in [[stage_in]],
 
 fragment float4 fragmentShader(VertexOut in [[stage_in]],
                                constant Uniforms &uniforms [[buffer(0)]],
-                               
                               texture2d<float> iChannel0 [[texture(2)]],
                               texture2d<float> iChannel1 [[texture(1)]]) {
     
@@ -345,9 +343,15 @@ fragment float4 fragmentShader(VertexOut in [[stage_in]],
     float3 rt = float3( 1.0, 0.0, 0.0 );
     float3x3 cam = setCamera( ro, rt, 0.35 );
     sampler sam;
-    finalColor.xyz = render(in.RayOri, in.RayDir, iChannel0, iChannel1, sam, uniforms.time);
+    
+    float3 globe = iChannel0.sample(sam, in.texCoords).rgb;
+    
+    float3 stars = iChannel1.sample(sam, in.texCoords).rgb;
+    
+    finalColor.xyz = render(in.RayOri, in.RayDir, globe, stars, sam, uniforms.time);
     //return finalColor;
     return float4(1.0,0,0,1);
+    
 }
 
 
