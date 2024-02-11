@@ -49,6 +49,7 @@ typedef struct
 {
     matrix_float4x4 projectionMatrix; // Projection matrix for 3D projection.
     matrix_float4x4 modelViewMatrix;  // Model-view matrix for model transformation and camera view.
+    simd_float3 cameraPosition;
     float time;
 } Uniforms;
 
@@ -59,3 +60,40 @@ typedef struct
 } UniformsArray;
 
 #endif /* ShaderTypes_h */
+
+
+//import <Foundation/Foundation.h>
+//import simd
+//
+//// Enumeration for buffer indices to identify buffers in the shader.
+//enum BufferIndex: Int {
+//    case meshPositions = 0 // Position data for mesh vertices.
+//    case meshGenerics = 1  // Generic attribute data for mesh vertices.
+//    case uniforms = 2      // Uniform buffer for transformation matrices.
+//}
+//
+//// Enumeration for vertex attributes to identify input vertex data in the shader.
+//enum VertexAttribute: Int {
+//    case position = 0 // Vertex position attribute.
+//    case texcoord = 1 // Vertex texture coordinate attribute.
+//}
+//
+//// Enumeration for texture indices to identify textures in the shader.
+//enum TextureIndex: Int {
+//    case color = 0 // Color texture.
+//    case stars = 1
+//    case globe = 2
+//}
+//
+//// Structure for transformation matrices used in vertex shading.
+//struct Uniforms {
+//    var projectionMatrix: matrix_float4x4 // Projection matrix for 3D projection.
+//    var modelViewMatrix: matrix_float4x4  // Model-view matrix for model transformation and camera view.
+//    var cameraPosition: SIMD3<Float>
+//    var time: Float
+//}
+//
+//// Array of Uniforms structures to support multiple transformation matrices.
+//struct UniformsArray {
+//    var uniforms: [Uniforms] = Array(repeating: Uniforms(projectionMatrix: matrix_float4x4(), modelViewMatrix: matrix_float4x4(), cameraPosition: SIMD3<Float>(0,0,0), time: 0), count: 2)
+//}

@@ -1,7 +1,7 @@
 //
 //  Shaders.metal
 //
-
+// Oluwasanmi Adenaiye MD MS 01.24.2024
 // File for Metal kernel and shader functions
 
 #include <metal_stdlib>
@@ -19,13 +19,13 @@ using namespace metal;
 
 struct Vertex{
     float3 position [[attribute(VertexAttributePosition)]];
-    float2 texCoord [[attribute(VertexAttributeTexcoord)]];
+ //   float2 texCoord [[attribute(VertexAttributeTexcoord)]];
 };
 
 
 struct ColorInOut{
     float4 position [[position]];
-    float2 texCoord;
+ //   float2 texCoord;
 };
 
 
@@ -69,12 +69,12 @@ float3 sphNormal(  float3 pos,  float4 sph )
     return (pos - sph.xyz)/sph.w;
 }
 
-float3 fancyCube(texture2d<float> texture, sampler sam,  float3 d,  float s,  float b )
+float3 fancyCube(texture2d<float> texture, sampler sam,  float3 direction,  float s,  float b )
 {
-    //calculate the sampling coordinates based on direction 'd'
-    float2 coordX = 0.5 + s* d.yz/d.x;
-    float2 coordY = 0.5 + s* d.zx/d.y;
-    float2 coordZ = 0.5 + s* d.xy/d.z;
+    //calculate the sampling coordinates based on direction
+    float2 coordX = 0.5 + s * direction.yz/direction.x;
+    float2 coordY = 0.5 + s * direction.zx/direction.y;
+    float2 coordZ = 0.5 + s * direction.xy/direction.z;
     
     
     //sample texture at calculated coordinates
@@ -83,11 +83,12 @@ float3 fancyCube(texture2d<float> texture, sampler sam,  float3 d,  float s,  fl
     float3 colz = texture.sample( sam, coordZ, level(b) ).xyz;
     
     //calculate weighted color components
-    float3 n = d*d;
+    float3 n = direction * direction;
     float3 resultColor = (colx * n.x + coly * n.y + colz * n.z)/ (n.x +n.y + n.z);
-    
     return resultColor;
 }
+
+
 
 
 float2 hash( float2 p ) { p=float2(dot(p,float2(127.1,311.7)),dot(p,float2(269.5,183.3))); return fract(sin(p)*43758.5453); }
@@ -113,33 +114,33 @@ float2 voronoi(  float2 x )
 
 //=======================================================
 
-float3 background(  float3 d,  float3 l , 
+float3 background(  float3 direction,  float3 l ,
                   texture2d<float> iChannel1,
                   sampler sam)
 {
     float3 col = float3(0.0);
     
-         col += 0.5*pow( fancyCube( iChannel1,sam,d, 0.05, 5.0 ).zyx, float3(2.0) );
-         col += 0.2*pow( fancyCube( iChannel1,sam, d, 0.10, 3.0 ).zyx, float3(1.5) );
-         col += 0.8*float3(0.80,0.5,0.6)*pow( fancyCube( iChannel1,sam, d, 0.1, 0.0 ).xxx, float3(6.0) );
+         col += 0.5*pow( fancyCube( iChannel1,sam,direction, 0.05, 5.0 ).zyx, float3(2.0) );
+         col += 0.2*pow( fancyCube( iChannel1,sam, direction, 0.10, 3.0 ).zyx, float3(1.5) );
+         col += 0.8*float3(0.80,0.5,0.6)*pow( fancyCube( iChannel1,sam, direction, 0.1, 0.0 ).xxx, float3(6.0) );
     
-    float stars = smoothstep( 0.3, 0.7, fancyCube( iChannel1,sam,d, 0.91, 0.0 ).x );
+    float stars = smoothstep( 0.3, 0.7, fancyCube( iChannel1,sam,direction, 0.91, 0.0 ).x );
 
-    float3 n = abs(d);
-    n = n*n*n;
+    float3 n = abs(direction);
+    n = n * n * n;
     
-    float2 vxy = voronoi( 50.0*d.xy );
-    float2 vyz = voronoi( 50.0*d.yz );
-    float2 vzx = voronoi( 50.0*d.zx );
+    float2 vxy = voronoi( 50.0 * direction.xy );
+    float2 vyz = voronoi( 50.0 * direction.yz );
+    float2 vzx = voronoi( 50.0 * direction.zx );
     float2 r = (vyz*n.x + vzx*n.y + vxy*n.z) / (n.x+n.y+n.z);
     col += 0.5 * stars * clamp(1.0-(3.0+r.y*5.0)*r.x,0.0,1.0);
 
-    col = 1.5*col - 0.2;
+    col = 1.5 * col - 0.2;
     col += float3(-0.05,0.1,0.0);
 
-    float s = clamp( dot(d,l), 0.0, 1.0 );
-    col += 0.4*pow(s,5.0)*float3(1.0,0.7,0.6)*2.0;
-    col += 0.4*pow(s,64.0)*float3(1.0,0.9,0.8)*2.0;
+    float s = clamp( dot(direction,l), 0.0, 1.0 );
+    col += 0.4*pow(s,5.0) * float3(1.0,0.7,0.6) * 2.0;
+    col += 0.4*pow(s,64.0) * float3(1.0,0.9,0.8) * 2.0;
     
     return col;
 }
@@ -189,7 +190,7 @@ float3 render( float3 ro, float3 rd ,texture2d<float> iChannel0, texture2d<float
     if( t>0.0 )
     {
         float3 mat = float3( 0.18 );
-        float3 pos = ro + t*rd;
+        float3 pos = ro + t * rd;
         float3 nor = sphNormal( pos, returnSPH1() );
             
         float am = 0.1*iTime;
@@ -290,7 +291,8 @@ float3x3 setCamera(  float3 ro,  float3 rt,  float cr )
 struct VertexIn {
     float3 position  [[attribute(0)]];
     float3 normal    [[attribute(1)]];
-    float2 texCoords [[attribute(2)]];};
+//    float2 texCoords [[attribute(2)]];
+};
 
 struct VertexOut {
     float4 position [[position]];
@@ -325,8 +327,27 @@ vertex VertexOut vertexShader(const VertexIn in [[stage_in]],
     VertexOut out;
     // Transform vertex positions to clip space
     out.position = uniforms.projectionMatrix * uniforms.modelViewMatrix * float4(in.position, 1.0f);
-    out.RayOri = float3(0.0);//pose.cameraPosition;//shouldn;t this be inverse of view matrix?
-    out.RayDir = normalize(out.RayOri - float3(0.0, 0.0, 0.0)); // Example direction
+    
+    // The ray origin is the camera position in world space, already provided in uniforms.
+    out.RayOri = uniforms.cameraPosition;
+    
+    // Calculate the world position of the vertex by applying the model-view matrix to the vertex position.
+    // This assumes that the model-view matrix transforms vertices from model space to view space.
+    // To get the position in world space, you would typically use the model matrix alone, but
+    // since we're directly using the modelViewMatrix, it implies the cameraPosition is considering the view transformation.
+
+    float4 worldPosition = (uniforms.modelViewMatrix) * float4(in.position, 1.0f);
+    
+    // The ray direction is from the camera to the vertex in world space.
+    // However, since worldPosition is in view space after applying modelViewMatrix,
+    // we don't perform a subtraction between worldPosition and cameraPosition here.
+    // If you need the direction vector from the camera to the vertex in world space, you will have to adjust this calculation
+    // based on how you've setup your transformations and what space you're working in.
+    
+    // For a typical scenario where you might want to calculate a view direction vector in view space,
+    // you could simply use the normalized vertex position in view space (ignoring translation).
+    
+    out.RayDir = normalize(worldPosition.xyz);
     return out;
 }
 
@@ -336,21 +357,26 @@ fragment float4 fragmentShader(VertexOut in [[stage_in]],
                               texture2d<float> iChannel0 [[texture(2)]],
                               texture2d<float> iChannel1 [[texture(1)]]) {
     
-    float4 finalColor = float4(0,0,0,1);
+    float4 finalColor = float4(0,1,0,1);
+    
     float zo = 1.0 + smoothstep( 5.0, 15.0, abs(uniforms.time-48.0) );
     float an = 3.0 + 0.05 * uniforms.time;
-    float3 ro = zo*float3( 2.0 * cos(an), 1.0, 2.0*sin(an) );
+    float3 ro = zo * float3( 2.0 * cos(an), 1.0, 2.0 * sin(an) );
     float3 rt = float3( 1.0, 0.0, 0.0 );
     float3x3 cam = setCamera( ro, rt, 0.35 );
+    
     sampler sam;
     
-    float3 globe = iChannel0.sample(sam, in.texCoords).rgb;
+    //float3 globe = iChannel0.sample(sam, in.texCoords).rgb;
+    //float3 stars = iChannel1.sample(sam, in.texCoords).rgb;
     
-    float3 stars = iChannel1.sample(sam, in.texCoords).rgb;
+    finalColor.xyz = render(in.RayOri, in.RayDir, iChannel0, iChannel1, sam, uniforms.time);
     
-    finalColor.xyz = render(in.RayOri, in.RayDir, globe, stars, sam, uniforms.time);
-    //return finalColor;
-    return float4(1.0,0,0,1);
+    
+    finalColor.xyz = render(ro+cam*in.RayOri, cam*in.RayDir, iChannel0, iChannel1, sam, uniforms.time);
+
+    return finalColor;
+    //return float4(1.0,0,0,1);
     
 }
 

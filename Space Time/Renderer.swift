@@ -29,30 +29,22 @@ class Renderer {
     public let device: MTLDevice
     let commandQueue: MTLCommandQueue
     var dynamicUniformBuffer: MTLBuffer
+    
     var pipelineState: MTLRenderPipelineState
     var depthState: MTLDepthStencilState
-    
-    var colorMap: MTLTexture
-    
-    var iChannel0: MTLTexture // Globe
-    
-    var iChannel1: MTLTexture // Stars
-    
+    //var colorMap: MTLTexture
+    var globe: MTLTexture
+    var stars: MTLTexture
     var startTime: TimeInterval = CACurrentMediaTime()
 
     
     let inFlightSemaphore = DispatchSemaphore(value: maxBuffersInFlight)
-
     var uniformBufferOffset = 0
-
     var uniformBufferIndex = 0
 
     var uniforms: UnsafeMutablePointer<UniformsArray>
-
     var rotation: Float = 0
-
     var mesh: MTKMesh
-
     let arSession: ARKitSession
     let worldTracking: WorldTrackingProvider
     let layerRenderer: LayerRenderer
@@ -61,7 +53,6 @@ class Renderer {
         self.layerRenderer = layerRenderer
         self.device = layerRenderer.device
         self.commandQueue = self.device.makeCommandQueue()!
-
         let uniformBufferSize = alignedUniformsSize * maxBuffersInFlight
 
         self.dynamicUniformBuffer = self.device.makeBuffer(length:uniformBufferSize,
@@ -88,26 +79,31 @@ class Renderer {
         
                       
                       
+//        do {
+//            mesh = try Renderer.buildMesh(device: device, mtlVertexDescriptor: mtlVertexDescriptor)
+//        } catch {
+//            fatalError("Unable to build MetalKit Mesh. Error info: \(error)")
+//        }
+
         do {
-            mesh = try Renderer.buildMesh(device: device, mtlVertexDescriptor: mtlVertexDescriptor)
+            mesh = try Renderer.buildFullScreenQuad(device: device, mtlVertexDescriptor: mtlVertexDescriptor)
         } catch {
             fatalError("Unable to build MetalKit Mesh. Error info: \(error)")
         }
-
-        do {
-            colorMap = try Renderer.loadTexture(device: device, textureName: "ColorMap")
-        } catch {
-            fatalError("Unable to load texture. Error info: \(error)")
-        }
+//        do {
+//            colorMap = try Renderer.loadTexture(device: device, textureName: "ColorMap")
+//        } catch {
+//            fatalError("Unable to load texture. Error info: \(error)")
+//        }
         
         do {
-            iChannel0 = try Renderer.loadTexturePNG(device: device, textureName: "globe")
+            globe = try Renderer.loadTexturePNG(device: device, textureName: "globe")
         } catch {
             fatalError("Unable to load globe. Error info: \(error)")
         }
         
         do {
-            iChannel1 = try Renderer.loadTextureJPG(device: device, textureName: "stars")
+            stars = try Renderer.loadTextureJPG(device: device, textureName: "stars")
         } catch {
             fatalError("Unable to load stars. Error info: \(error)")
         }
@@ -132,37 +128,53 @@ class Renderer {
             renderThread.start()
         }
     }
-
+    // Create a Metal vertex descriptor specifying how vertices will by laid out for input into our render pipeline and how we'll layout our Model IO vertices
     class func buildMetalVertexDescriptor() -> MTLVertexDescriptor {
-        // Create a Metal vertex descriptor specifying how vertices will by laid out for input into our render
-        //   pipeline and how we'll layout our Model IO vertices
 
+//        let mtlVertexDescriptor = MTLVertexDescriptor()
+//
+//        mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].format = MTLVertexFormat.float3
+//        mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].offset = 0
+//        mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].bufferIndex = BufferIndex.meshPositions.rawValue
+//
+//        mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue].format = MTLVertexFormat.float2
+//        mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue].offset = 0
+//        mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue].bufferIndex = BufferIndex.meshGenerics.rawValue
+//
+//        mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stride = 12
+//        mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stepRate = 1
+//        mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stepFunction = MTLVertexStepFunction.perVertex
+//
+//        mtlVertexDescriptor.layouts[BufferIndex.meshGenerics.rawValue].stride = 8
+//        mtlVertexDescriptor.layouts[BufferIndex.meshGenerics.rawValue].stepRate = 1
+//        mtlVertexDescriptor.layouts[BufferIndex.meshGenerics.rawValue].stepFunction = MTLVertexStepFunction.perVertex
+//
+//        return mtlVertexDescriptor
+        
         let mtlVertexDescriptor = MTLVertexDescriptor()
 
-        mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].format = MTLVertexFormat.float3
-        mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].offset = 0
-        mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].bufferIndex = BufferIndex.meshPositions.rawValue
+           // Setup for vertex positions
+           mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].format = MTLVertexFormat.float3
+           mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].offset = 0
+           mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].bufferIndex = BufferIndex.meshPositions.rawValue
 
-        mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue].format = MTLVertexFormat.float2
-        mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue].offset = 0
-        mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue].bufferIndex = BufferIndex.meshGenerics.rawValue
+           // Define the layout for the position data in the buffer
+           mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stride = MemoryLayout<SIMD3<Float>>.stride // Or simply 12
+           mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stepRate = 1
+           mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stepFunction = MTLVertexStepFunction.perVertex
 
-        mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stride = 12
-        mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stepRate = 1
-        mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stepFunction = MTLVertexStepFunction.perVertex
+           // Remove or comment out the texture coordinate setup if not used
+           // mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue]...
+           // mtlVertexDescriptor.layouts[BufferIndex.meshGenerics.rawValue]...
 
-        mtlVertexDescriptor.layouts[BufferIndex.meshGenerics.rawValue].stride = 8
-        mtlVertexDescriptor.layouts[BufferIndex.meshGenerics.rawValue].stepRate = 1
-        mtlVertexDescriptor.layouts[BufferIndex.meshGenerics.rawValue].stepFunction = MTLVertexStepFunction.perVertex
-
-        return mtlVertexDescriptor
+           return mtlVertexDescriptor
     }
 
     class func buildRenderPipelineWithDevice(device: MTLDevice,
                                              layerRenderer: LayerRenderer,
                                              mtlVertexDescriptor: MTLVertexDescriptor) throws -> MTLRenderPipelineState {
-        /// Build a render state pipeline object
-
+        
+        // Build a render state pipeline object
         let library = device.makeDefaultLibrary()
 
         let vertexFunction = library?.makeFunction(name: "vertexShader")
@@ -184,8 +196,8 @@ class Renderer {
 
     class func buildMesh(device: MTLDevice,
                          mtlVertexDescriptor: MTLVertexDescriptor) throws -> MTKMesh {
+        
         /// Create and condition mesh data to feed into a pipeline using the given vertex descriptor
-
         let metalAllocator = MTKMeshBufferAllocator(device: device)
 
         let mdlMesh = MDLMesh.newBox(withDimensions: SIMD3<Float>(4, 4, 4),
@@ -206,6 +218,83 @@ class Renderer {
 
         return try MTKMesh(mesh:mdlMesh, device:device)
     }
+    
+    
+    class func buildFullScreenQuad(device: MTLDevice, mtlVertexDescriptor: MTLVertexDescriptor) throws -> MTKMesh {
+        // Allocator for mesh buffers
+        let metalAllocator = MTKMeshBufferAllocator(device: device)
+
+        // Define the quad vertices (two triangles) to cover the entire screen in NDC
+        let quadVertices: [Float] = [
+            -1.0,  1.0, 0.0,  // Top left
+            -1.0, -1.0, 0.0,  // Bottom left
+             1.0, -1.0, 0.0,  // Bottom right
+            -1.0,  1.0, 0.0,  // Top left
+             1.0, -1.0, 0.0,  // Bottom right
+             1.0,  1.0, 0.0   // Top right
+        ]
+        
+        // Convert arrays to Data
+        let vertexData = Data(bytes: quadVertices, count: quadVertices.count * MemoryLayout<Float>.size)
+        
+        // Create a vertex buffer with the quad vertices
+        let vertexBuffer = metalAllocator.newBuffer(with: vertexData,
+                                                     type: .vertex)
+
+        
+        let mdlVertexDescriptor = MTKModelIOVertexDescriptorFromMetal(mtlVertexDescriptor)
+
+        
+        // Create a MDLMesh with the vertex buffer, no need for index buffer for a full-screen quad
+        let mdlMesh = MDLMesh(vertexBuffer: vertexBuffer,
+                              vertexCount: 6,
+                              descriptor: mdlVertexDescriptor,
+                              submeshes: [])
+
+        return try MTKMesh(mesh: mdlMesh, device: device)
+    }
+
+    
+//    class func buildFullScreenQuad_(device: MTLDevice, mtlVertexDescriptor: MTLVertexDescriptor) throws -> MTKMesh {
+//        /// Create mesh data for a full-screen quad
+//        let metalAllocator = MTKMeshBufferAllocator(device: device)
+//
+//        // Define the quad vertices. Each vertex has a position (x, y, z) and a texture coordinate (u, v).
+//        // The z-coordinate is set to 0.0 because we're rendering a 2D quad in a 3D space.
+//        let quadVertices: [Float] = [
+//            -1.0,  1.0, 0.0,  0.0, 1.0,  // Top Left
+//            -1.0, -1.0, 0.0,  0.0, 0.0,  // Bottom Left
+//             1.0, -1.0, 0.0,  1.0, 0.0,  // Bottom Right
+//             1.0,  1.0, 0.0,  1.0, 1.0   // Top Right
+//        ]
+//
+//        // Define the indices for the two triangles that make up the quad
+//        let quadIndices: [UInt16] = [
+//            0, 1, 2,  // First triangle
+//            2, 3, 0   // Second triangle
+//        ]
+//        // Convert arrays to Data
+//        let vertexData = Data(bytes: quadVertices, count: quadVertices.count * MemoryLayout<Float>.size)
+//        let indexData = Data(bytes: quadIndices, count: quadIndices.count * MemoryLayout<UInt16>.size)
+//
+//        // Create buffers for the vertex data and index data
+//        let vertexBuffer = metalAllocator.newBuffer(with: vertexData, type: .vertex)
+//        let indexBuffer = metalAllocator.newBuffer(with: indexData, type: .index)
+//
+//        let mdlVertexDescriptor = MTKModelIOVertexDescriptorFromMetal(mtlVertexDescriptor)
+//
+//        // Create a MDLMesh with the vertex and index data
+//        let mdlMesh = MDLMesh(vertexBuffer: vertexBuffer, vertexCount: quadVertices.count / 5,
+//                              descriptor: mdlVertexDescriptor, submeshes: [])
+//
+////        // Create a MDLSubmesh for the quad
+////        let submesh = MDLSubmesh(indexBuffer: indexBuffer, indexCount: quadIndices.count,
+////                                 indexType: .uInt16, geometryType: .triangles, material: nil)
+//        
+//        // Convert the MDLMesh to a MTKMesh
+//        return try MTKMesh(mesh: mdlMesh, device: device)
+//    }
+
 
     class func loadTexture(device: MTLDevice,
                            textureName: String) throws -> MTLTexture {
@@ -302,20 +391,18 @@ class Renderer {
         /// Update the state of our uniform buffers before rendering
 
         uniformBufferIndex = (uniformBufferIndex + 1) % maxBuffersInFlight
-
         uniformBufferOffset = alignedUniformsSize * uniformBufferIndex
-
         uniforms = UnsafeMutableRawPointer(dynamicUniformBuffer.contents() + uniformBufferOffset).bindMemory(to:UniformsArray.self, capacity:1)
     }
 
     private func updateGameState(drawable: LayerRenderer.Drawable, deviceAnchor: DeviceAnchor?) {
         /// Update any game state before rendering
-        
-        
+
         let currentTime = CACurrentMediaTime()
         let elapsedTime = Float(currentTime - self.startTime)
         
         let rotationAxis = SIMD3<Float>(1, 1, 0)
+
         let modelRotationMatrix = matrix4x4_rotation(radians: rotation, axis: rotationAxis)
         let modelTranslationMatrix = matrix4x4_translation(0.0, 0.0, -8.0)
         let modelMatrix = modelTranslationMatrix * modelRotationMatrix
@@ -333,7 +420,15 @@ class Renderer {
                                                    farZ: Double(drawable.depthRange.x),
                                                    reverseZ: true)
             
-            return Uniforms(projectionMatrix: .init(projection), modelViewMatrix: viewMatrix * modelMatrix, time: elapsedTime)
+            
+            // Extract camera position from the translation components of the matrix
+            let translation = viewMatrix.inverse.columns.3
+            
+            
+            
+            let cameraPosition = SIMD3<Float>(translation.x, translation.y, translation.z)
+            
+            return Uniforms(projectionMatrix: .init(projection), modelViewMatrix: viewMatrix * modelMatrix, cameraPosition: cameraPosition, time: elapsedTime)
         }
         
             self.uniforms[0].uniforms.0 = uniforms(forViewIndex: 0)
@@ -341,7 +436,7 @@ class Renderer {
             self.uniforms[0].uniforms.1 = uniforms(forViewIndex: 1)
         }
         
-        rotation += 0.01
+        //rotation += 0.01
     }
 
     func renderFrame() {
@@ -442,9 +537,9 @@ class Renderer {
         
         renderEncoder.setFragmentBuffer(dynamicUniformBuffer, offset: uniformBufferOffset, index: 0)
         
-        renderEncoder.setFragmentTexture(colorMap, index: 0)
-        renderEncoder.setFragmentTexture(iChannel1, index: 1)//stars
-        renderEncoder.setFragmentTexture(iChannel0, index: 2)//globe
+        //renderEncoder.setFragmentTexture(colorMap, index: 0)
+        renderEncoder.setFragmentTexture(stars, index: 1)//
+        renderEncoder.setFragmentTexture(globe, index: 2)//
 
         
         for submesh in mesh.submeshes {
