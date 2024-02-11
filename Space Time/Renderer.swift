@@ -77,8 +77,6 @@ class Renderer {
         depthStateDescriptor.isDepthWriteEnabled = true
         self.depthState = device.makeDepthStencilState(descriptor:depthStateDescriptor)!
         
-                      
-                      
 //        do {
 //            mesh = try Renderer.buildMesh(device: device, mtlVertexDescriptor: mtlVertexDescriptor)
 //        } catch {
@@ -107,7 +105,6 @@ class Renderer {
         } catch {
             fatalError("Unable to load stars. Error info: \(error)")
         }
-        
         
         worldTracking = WorldTrackingProvider()
         arSession = ARKitSession()
@@ -536,20 +533,27 @@ class Renderer {
         }
         
         renderEncoder.setFragmentBuffer(dynamicUniformBuffer, offset: uniformBufferOffset, index: 0)
-        
-        //renderEncoder.setFragmentTexture(colorMap, index: 0)
         renderEncoder.setFragmentTexture(stars, index: 1)//
         renderEncoder.setFragmentTexture(globe, index: 2)//
 
-        
-        for submesh in mesh.submeshes {
-            renderEncoder.drawIndexedPrimitives(type: submesh.primitiveType,
-                                                indexCount: submesh.indexCount,
-                                                indexType: submesh.indexType,
-                                                indexBuffer: submesh.indexBuffer.buffer,
-                                                indexBufferOffset: submesh.indexBuffer.offset)
+
+        if let vertexBuffer = mesh.vertexBuffers.first?.buffer {
+            // Set the vertex buffer
+            renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
             
+            // Draw the quad directly without using indices
+            renderEncoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
         }
+        
+        
+//        for submesh in mesh.submeshes {
+//            renderEncoder.drawIndexedPrimitives(type: submesh.primitiveType,
+//                                                indexCount: submesh.indexCount,
+//                                                indexType: submesh.indexType,
+//                                                indexBuffer: submesh.indexBuffer.buffer,
+//                                                indexBufferOffset: submesh.indexBuffer.offset)
+//            
+//        }
         
         renderEncoder.popDebugGroup()
         

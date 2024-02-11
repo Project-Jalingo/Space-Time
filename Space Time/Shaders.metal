@@ -296,7 +296,7 @@ struct VertexIn {
 
 struct VertexOut {
     float4 position [[position]];
-    float2 texCoords;
+    float  time;
     float3 modelNormal;//??
     float3 RayOri;
     float3 RayDir;
@@ -320,11 +320,13 @@ struct InstanceConstants {
 };
 
 vertex VertexOut vertexShader(const VertexIn in [[stage_in]],
-                              constant Uniforms &uniforms [[buffer(0)]]){
+                              constant UniformsArray &uniformsArray [[buffer(0)]]){
                              //constant PoseConstants &pose [[buffer(0)]],
                              //constant InstanceConstants &environment [[buffer(1)]],
                              //constant float &time [[buffer(2)]]) {
     VertexOut out;
+    // access the first set of uniforms
+    constant Uniforms& uniforms = uniformsArray.uniforms[0];
     // Transform vertex positions to clip space
     out.position = uniforms.projectionMatrix * uniforms.modelViewMatrix * float4(in.position, 1.0f);
     
@@ -348,19 +350,20 @@ vertex VertexOut vertexShader(const VertexIn in [[stage_in]],
     // you could simply use the normalized vertex position in view space (ignoring translation).
     
     out.RayDir = normalize(worldPosition.xyz);
+    out.time = uniforms.time;
     return out;
 }
 
 
 fragment float4 fragmentShader(VertexOut in [[stage_in]],
-                               constant Uniforms &uniforms [[buffer(0)]],
+                               //constant Uniforms &uniformsArra [[buffer(0)]],
                               texture2d<float> iChannel0 [[texture(2)]],
                               texture2d<float> iChannel1 [[texture(1)]]) {
     
     float4 finalColor = float4(0,1,0,1);
     
-    float zo = 1.0 + smoothstep( 5.0, 15.0, abs(uniforms.time-48.0) );
-    float an = 3.0 + 0.05 * uniforms.time;
+    float zo = 1.0 + smoothstep( 5.0, 15.0, abs(in.time-48.0) );
+    float an = 3.0 + 0.05 * in.time;
     float3 ro = zo * float3( 2.0 * cos(an), 1.0, 2.0 * sin(an) );
     float3 rt = float3( 1.0, 0.0, 0.0 );
     float3x3 cam = setCamera( ro, rt, 0.35 );
@@ -370,10 +373,10 @@ fragment float4 fragmentShader(VertexOut in [[stage_in]],
     //float3 globe = iChannel0.sample(sam, in.texCoords).rgb;
     //float3 stars = iChannel1.sample(sam, in.texCoords).rgb;
     
-    finalColor.xyz = render(in.RayOri, in.RayDir, iChannel0, iChannel1, sam, uniforms.time);
+    finalColor.xyz = render(in.RayOri, in.RayDir, iChannel0, iChannel1, sam, in.time);
     
     
-    finalColor.xyz = render(ro+cam*in.RayOri, cam*in.RayDir, iChannel0, iChannel1, sam, uniforms.time);
+    finalColor.xyz = render(ro+cam*in.RayOri, cam*in.RayDir, iChannel0, iChannel1, sam, in.time);
 
     return finalColor;
     //return float4(1.0,0,0,1);
