@@ -17,16 +17,16 @@ using namespace metal;
 #define AB 2
 
 
-struct Vertex{
-    float3 position [[attribute(VertexAttributePosition)]];
- //   float2 texCoord [[attribute(VertexAttributeTexcoord)]];
-};
-
-
-struct ColorInOut{
-    float4 position [[position]];
- //   float2 texCoord;
-};
+//struct Vertex{
+//    float3 position [[attribute(VertexAttributePosition)]];
+// //   float2 texCoord [[attribute(VertexAttributeTexcoord)]];
+//};
+//
+//
+//struct ColorInOut{
+//    float4 position [[position]];
+// //   float2 texCoord;
+//};
 
 
 
@@ -286,50 +286,60 @@ float3x3 setCamera(  float3 ro,  float3 rt,  float cr )
 
 
 
-
+//struct PoseConstants {
+//    float4x4 projectionMatrix;
+//    float4x4 viewMatrix;
+//    float3 cameraPosition;
+//};
+//
+//struct InstanceConstants {
+//    float4x4 modelMatrix;
+//};
 
 struct VertexIn {
     float3 position  [[attribute(0)]];
-    float3 normal    [[attribute(1)]];
-//    float2 texCoords [[attribute(2)]];
 };
 
 struct VertexOut {
     float4 position [[position]];
     float  time;
-    float3 modelNormal;//??
+    float3 modelNormal;
     float3 RayOri;
     float3 RayDir;
 };
 
 
-//struct Uniforms {
-//    float4x4 modelViewMatrix;
-//    float4x4 projectionMatrix;
-//    float time;
-//};
-
-struct PoseConstants {
-    float4x4 projectionMatrix;
-    float4x4 viewMatrix;
-    float3 cameraPosition;
-};
-
-struct InstanceConstants {
-    float4x4 modelMatrix;
-};
 
 vertex VertexOut vertexShader(const VertexIn in [[stage_in]],
-                              constant UniformsArray &uniformsArray [[buffer(0)]]){
-                             //constant PoseConstants &pose [[buffer(0)]],
-                             //constant InstanceConstants &environment [[buffer(1)]],
-                             //constant float &time [[buffer(2)]]) {
+                              constant UniformsArray &uniformsArray [[buffer(1)]]){
+
     VertexOut out;
+    
+    
+//    // Hardcoded positions for debugging
+//    float3 positions[6] = { 
+//        float3(-1.0, 1.0, 0.0),
+//        float3( -1.0, -1.0, 0.0),
+//        float3(1.0, -1.0, 0.0),
+//        float3(-1.0,  1.0, 0.0),
+//        float3(1.0, -1.0, 0.0),
+//        float3( 1.0,  1.0, 0.0)};
+//    // Define all corners
+//        out.position = float4(positions[in.vertexID], 1.0);
+    
+    
+    
     // access the first set of uniforms
     constant Uniforms& uniforms = uniformsArray.uniforms[0];
-    // Transform vertex positions to clip space
-    out.position = uniforms.projectionMatrix * uniforms.modelViewMatrix * float4(in.position, 1.0f);
     
+    //float4 clipPositions = float4(in.position.xy, 0.9f, 1.0f);
+    
+    // Transform vertex positions to clip space
+    //out.position = uniforms.projectionMatrix * clipPositions;// uniforms.modelViewMatrix * float4(in.position, 1.0f);
+    
+    //out.position = uniforms.projectionMatrix * uniforms.viewMatrix * uniforms.modelMatrix * float4(in.position, 1.0f);
+    out.position = float4(in.position, 1.0f);
+    //out.position = float4(in.position, 1.0f);
     // The ray origin is the camera position in world space, already provided in uniforms.
     out.RayOri = uniforms.cameraPosition;
     
@@ -338,7 +348,7 @@ vertex VertexOut vertexShader(const VertexIn in [[stage_in]],
     // To get the position in world space, you would typically use the model matrix alone, but
     // since we're directly using the modelViewMatrix, it implies the cameraPosition is considering the view transformation.
 
-    float4 worldPosition = (uniforms.modelViewMatrix) * float4(in.position, 1.0f);
+    float4 worldPosition = (uniforms.modelMatrix) * float4(in.position, 1.0f);
     
     // The ray direction is from the camera to the vertex in world space.
     // However, since worldPosition is in view space after applying modelViewMatrix,
@@ -349,7 +359,7 @@ vertex VertexOut vertexShader(const VertexIn in [[stage_in]],
     // For a typical scenario where you might want to calculate a view direction vector in view space,
     // you could simply use the normalized vertex position in view space (ignoring translation).
     
-    out.RayDir = normalize(worldPosition.xyz);
+    out.RayDir = normalize(worldPosition.xyz - out.RayOri);
     out.time = uniforms.time;
     return out;
 }
@@ -357,10 +367,10 @@ vertex VertexOut vertexShader(const VertexIn in [[stage_in]],
 
 fragment float4 fragmentShader(VertexOut in [[stage_in]],
                                //constant Uniforms &uniformsArra [[buffer(0)]],
-                              texture2d<float> iChannel0 [[texture(2)]],
-                              texture2d<float> iChannel1 [[texture(1)]]) {
+                              texture2d<float> iChannel1 [[texture(2)]],
+                              texture2d<float> iChannel0 [[texture(1)]]) {
     
-    float4 finalColor = float4(0,1,0,1);
+    float4 finalColor = float4(1,0,0,1);
     
     float zo = 1.0 + smoothstep( 5.0, 15.0, abs(in.time-48.0) );
     float an = 3.0 + 0.05 * in.time;
@@ -370,17 +380,10 @@ fragment float4 fragmentShader(VertexOut in [[stage_in]],
     
     sampler sam;
     
-    //float3 globe = iChannel0.sample(sam, in.texCoords).rgb;
-    //float3 stars = iChannel1.sample(sam, in.texCoords).rgb;
-    
-    finalColor.xyz = render(in.RayOri, in.RayDir, iChannel0, iChannel1, sam, in.time);
-    
-    
-    finalColor.xyz = render(ro+cam*in.RayOri, cam*in.RayDir, iChannel0, iChannel1, sam, in.time);
-
+    //finalColor.xyz = render(in.RayOri, in.RayDir, iChannel0, iChannel1, sam, in.time);
+    finalColor.xyz = render(ro+cam * in.RayOri, cam * in.RayDir, iChannel0, iChannel1, sam, in.time);
     return finalColor;
-    //return float4(1.0,0,0,1);
-    
+    //return float4(1,0,0,1);
 }
 
 

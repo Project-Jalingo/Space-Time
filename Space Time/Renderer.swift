@@ -85,6 +85,7 @@ class Renderer {
 
         do {
             mesh = try Renderer.buildFullScreenQuad(device: device, mtlVertexDescriptor: mtlVertexDescriptor)
+           // mesh = try Renderer.buildMesh(device: device, mtlVertexDescriptor: mtlVertexDescriptor)
         } catch {
             fatalError("Unable to build MetalKit Mesh. Error info: \(error)")
         }
@@ -128,25 +129,6 @@ class Renderer {
     // Create a Metal vertex descriptor specifying how vertices will by laid out for input into our render pipeline and how we'll layout our Model IO vertices
     class func buildMetalVertexDescriptor() -> MTLVertexDescriptor {
 
-//        let mtlVertexDescriptor = MTLVertexDescriptor()
-//
-//        mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].format = MTLVertexFormat.float3
-//        mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].offset = 0
-//        mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].bufferIndex = BufferIndex.meshPositions.rawValue
-//
-//        mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue].format = MTLVertexFormat.float2
-//        mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue].offset = 0
-//        mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue].bufferIndex = BufferIndex.meshGenerics.rawValue
-//
-//        mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stride = 12
-//        mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stepRate = 1
-//        mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stepFunction = MTLVertexStepFunction.perVertex
-//
-//        mtlVertexDescriptor.layouts[BufferIndex.meshGenerics.rawValue].stride = 8
-//        mtlVertexDescriptor.layouts[BufferIndex.meshGenerics.rawValue].stepRate = 1
-//        mtlVertexDescriptor.layouts[BufferIndex.meshGenerics.rawValue].stepFunction = MTLVertexStepFunction.perVertex
-//
-//        return mtlVertexDescriptor
         
         let mtlVertexDescriptor = MTLVertexDescriptor()
 
@@ -156,13 +138,9 @@ class Renderer {
            mtlVertexDescriptor.attributes[VertexAttribute.position.rawValue].bufferIndex = BufferIndex.meshPositions.rawValue
 
            // Define the layout for the position data in the buffer
-           mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stride = MemoryLayout<SIMD3<Float>>.stride // Or simply 12
-           mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stepRate = 1
-           mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stepFunction = MTLVertexStepFunction.perVertex
-
-           // Remove or comment out the texture coordinate setup if not used
-           // mtlVertexDescriptor.attributes[VertexAttribute.texcoord.rawValue]...
-           // mtlVertexDescriptor.layouts[BufferIndex.meshGenerics.rawValue]...
+        mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stride = 12;//MemoryLayout<SIMD3<Float>>.stride // Or simply 12
+           //mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stepRate = 1
+           //mtlVertexDescriptor.layouts[BufferIndex.meshPositions.rawValue].stepFunction = MTLVertexStepFunction.perVertex
 
            return mtlVertexDescriptor
     }
@@ -209,7 +187,7 @@ class Renderer {
             throw RendererError.badVertexDescriptor
         }
         attributes[VertexAttribute.position.rawValue].name = MDLVertexAttributePosition
-        attributes[VertexAttribute.texcoord.rawValue].name = MDLVertexAttributeTextureCoordinate
+        //attributes[VertexAttribute.texcoord.rawValue].name = MDLVertexAttributeTextureCoordinate
 
         mdlMesh.vertexDescriptor = mdlVertexDescriptor
 
@@ -223,75 +201,50 @@ class Renderer {
 
         // Define the quad vertices (two triangles) to cover the entire screen in NDC
         let quadVertices: [Float] = [
-            -1.0,  1.0, 0.0,  // Top left
-            -1.0, -1.0, 0.0,  // Bottom left
-             1.0, -1.0, 0.0,  // Bottom right
-            -1.0,  1.0, 0.0,  // Top left
-             1.0, -1.0, 0.0,  // Bottom right
-             1.0,  1.0, 0.0   // Top right
+            // First triangle
+            -1.0,  1.0, 0.0, // top left
+            -1.0, -1.0, 0.0, // bottom left
+             1.0, -1.0, 0.0, // bottom right
+            // Second triangle
+            -1.0,  1.0, 0.0, // top left
+             1.0, -1.0, 0.0, // bottom right
+             1.0,  1.0, 0.0  // top right
         ]
         
-        // Convert arrays to Data
-        let vertexData = Data(bytes: quadVertices, count: quadVertices.count * MemoryLayout<Float>.size)
+        // Indices for the vertices above
+        let indices: [UInt16] = [
+            0, 1, 2,  // First triangle
+            3, 4, 5   // Second triangle
+        ]
         
-        // Create a vertex buffer with the quad vertices
-        let vertexBuffer = metalAllocator.newBuffer(with: vertexData,
-                                                     type: .vertex)
+        
+        // Convert vertices and indices arrays to Data
+         let vertexData = Data(bytes: quadVertices, count: quadVertices.count * MemoryLayout<Float>.size)
+         let indexData = Data(bytes: indices, count: indices.count * MemoryLayout<UInt16>.size)
 
+
+        // Create vertex and index buffers
+        let vertexBuffer = metalAllocator.newBuffer(with: vertexData, type: .vertex)
+        let indexBuffer = metalAllocator.newBuffer(with: indexData, type: .index)
         
+        // Create the MDLMesh with the vertex buffer
+        let submesh = MDLSubmesh(indexBuffer: indexBuffer,
+                                 indexCount: indices.count,
+                                 indexType: .uInt16,
+                                 geometryType: .triangles,
+                                 material: nil)
+        
+
         let mdlVertexDescriptor = MTKModelIOVertexDescriptorFromMetal(mtlVertexDescriptor)
 
+        let mdlMesh = MDLMesh(vertexBuffers: [vertexBuffer],
+                              vertexCount: quadVertices.count / 3,
+                              descriptor: (mdlVertexDescriptor),
+                              submeshes: [submesh])
         
-        // Create a MDLMesh with the vertex buffer, no need for index buffer for a full-screen quad
-        let mdlMesh = MDLMesh(vertexBuffer: vertexBuffer,
-                              vertexCount: 6,
-                              descriptor: mdlVertexDescriptor,
-                              submeshes: [])
-
+        
         return try MTKMesh(mesh: mdlMesh, device: device)
     }
-
-    
-//    class func buildFullScreenQuad_(device: MTLDevice, mtlVertexDescriptor: MTLVertexDescriptor) throws -> MTKMesh {
-//        /// Create mesh data for a full-screen quad
-//        let metalAllocator = MTKMeshBufferAllocator(device: device)
-//
-//        // Define the quad vertices. Each vertex has a position (x, y, z) and a texture coordinate (u, v).
-//        // The z-coordinate is set to 0.0 because we're rendering a 2D quad in a 3D space.
-//        let quadVertices: [Float] = [
-//            -1.0,  1.0, 0.0,  0.0, 1.0,  // Top Left
-//            -1.0, -1.0, 0.0,  0.0, 0.0,  // Bottom Left
-//             1.0, -1.0, 0.0,  1.0, 0.0,  // Bottom Right
-//             1.0,  1.0, 0.0,  1.0, 1.0   // Top Right
-//        ]
-//
-//        // Define the indices for the two triangles that make up the quad
-//        let quadIndices: [UInt16] = [
-//            0, 1, 2,  // First triangle
-//            2, 3, 0   // Second triangle
-//        ]
-//        // Convert arrays to Data
-//        let vertexData = Data(bytes: quadVertices, count: quadVertices.count * MemoryLayout<Float>.size)
-//        let indexData = Data(bytes: quadIndices, count: quadIndices.count * MemoryLayout<UInt16>.size)
-//
-//        // Create buffers for the vertex data and index data
-//        let vertexBuffer = metalAllocator.newBuffer(with: vertexData, type: .vertex)
-//        let indexBuffer = metalAllocator.newBuffer(with: indexData, type: .index)
-//
-//        let mdlVertexDescriptor = MTKModelIOVertexDescriptorFromMetal(mtlVertexDescriptor)
-//
-//        // Create a MDLMesh with the vertex and index data
-//        let mdlMesh = MDLMesh(vertexBuffer: vertexBuffer, vertexCount: quadVertices.count / 5,
-//                              descriptor: mdlVertexDescriptor, submeshes: [])
-//
-////        // Create a MDLSubmesh for the quad
-////        let submesh = MDLSubmesh(indexBuffer: indexBuffer, indexCount: quadIndices.count,
-////                                 indexType: .uInt16, geometryType: .triangles, material: nil)
-//        
-//        // Convert the MDLMesh to a MTKMesh
-//        return try MTKMesh(mesh: mdlMesh, device: device)
-//    }
-
 
     class func loadTexture(device: MTLDevice,
                            textureName: String) throws -> MTLTexture {
@@ -311,25 +264,6 @@ class Renderer {
 
     }
 
-    
-    
-//    class func loadTexturePNG(device: MTLDevice,
-//                           textureName: String) throws -> MTLTexture {
-//        /// Load texture data with optimal parameters for sampling
-//
-//        let textureLoader = MTKTextureLoader(device: device)
-//
-//        let textureLoaderOptions = [
-//            MTKTextureLoader.Option.textureUsage: NSNumber(value: MTLTextureUsage.shaderRead.rawValue),
-//            MTKTextureLoader.Option.textureStorageMode: NSNumber(value: MTLStorageMode.`private`.rawValue)
-//        ]
-//
-//        return try textureLoader.newTexture(name: textureName,
-//                                            scaleFactor: 1.0,
-//                                            bundle: nil,
-//                                            options: textureLoaderOptions)
-//
-//    }
     class func loadTexturePNG(device: MTLDevice, textureName: String) throws -> MTLTexture {
         let textureLoader = MTKTextureLoader(device: device)
 
@@ -400,9 +334,16 @@ class Renderer {
         
         let rotationAxis = SIMD3<Float>(1, 1, 0)
 
+        
+        
         let modelRotationMatrix = matrix4x4_rotation(radians: rotation, axis: rotationAxis)
-        let modelTranslationMatrix = matrix4x4_translation(0.0, 0.0, -8.0)
-        let modelMatrix = modelTranslationMatrix * modelRotationMatrix
+        let modelTranslationMatrix = matrix4x4_translation(0.0, 0.0, -1.0)
+        //let modelMatrix = modelTranslationMatrix * modelRotationMatrix
+        
+        // Use identity matrices for simplification
+        let modelMatrix = matrix_identity_float4x4
+        //let viewMatrix = matrix_identity_float4x4
+
         
         let simdDeviceAnchor = deviceAnchor?.originFromAnchorTransform ?? matrix_identity_float4x4
         
@@ -420,12 +361,9 @@ class Renderer {
             
             // Extract camera position from the translation components of the matrix
             let translation = viewMatrix.inverse.columns.3
-            
-            
-            
             let cameraPosition = SIMD3<Float>(translation.x, translation.y, translation.z)
-            
-            return Uniforms(projectionMatrix: .init(projection), modelViewMatrix: viewMatrix * modelMatrix, cameraPosition: cameraPosition, time: elapsedTime)
+//            * modelMatrix
+            return Uniforms(projectionMatrix: .init(projection), modelMatrix: modelMatrix , viewMatrix: viewMatrix , cameraPosition: cameraPosition, time: elapsedTime)
         }
         
             self.uniforms[0].uniforms.0 = uniforms(forViewIndex: 0)
@@ -498,7 +436,9 @@ class Renderer {
         
         renderEncoder.pushDebugGroup("Draw Box")
         
-        renderEncoder.setCullMode(.back)
+        //renderEncoder.setCullMode(.back)
+        renderEncoder.setCullMode(.none)
+
         
         renderEncoder.setFrontFacing(.counterClockwise)
         
@@ -506,7 +446,7 @@ class Renderer {
         
         renderEncoder.setDepthStencilState(depthState)
         
-        renderEncoder.setVertexBuffer(dynamicUniformBuffer, offset:uniformBufferOffset, index: BufferIndex.uniforms.rawValue)
+        renderEncoder.setVertexBuffer(dynamicUniformBuffer, offset:uniformBufferOffset, index: 1)
 
         let viewports = drawable.views.map { $0.textureMap.viewport }
         
@@ -521,16 +461,16 @@ class Renderer {
         }
 
         
-        for (index, element) in mesh.vertexDescriptor.layouts.enumerated() {
-            guard let layout = element as? MDLVertexBufferLayout else {
-                return
-            }
-            
-            if layout.stride != 0 {
-                let buffer = mesh.vertexBuffers[index]
-                renderEncoder.setVertexBuffer(buffer.buffer, offset:buffer.offset, index: index)
-            }
-        }
+//        for (index, element) in mesh.vertexDescriptor.layouts.enumerated() {
+//            guard let layout = element as? MDLVertexBufferLayout else {
+//                return
+//            }
+//            
+//            if layout.stride != 0 {
+//                let buffer = mesh.vertexBuffers[index]
+//                renderEncoder.setVertexBuffer(buffer.buffer, offset:buffer.offset, index: index)
+//            }
+//        }
         
         renderEncoder.setFragmentBuffer(dynamicUniformBuffer, offset: uniformBufferOffset, index: 0)
         renderEncoder.setFragmentTexture(stars, index: 1)//
@@ -542,18 +482,18 @@ class Renderer {
             renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
             
             // Draw the quad directly without using indices
-            renderEncoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
+            //renderEncoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
         }
         
         
-//        for submesh in mesh.submeshes {
-//            renderEncoder.drawIndexedPrimitives(type: submesh.primitiveType,
-//                                                indexCount: submesh.indexCount,
-//                                                indexType: submesh.indexType,
-//                                                indexBuffer: submesh.indexBuffer.buffer,
-//                                                indexBufferOffset: submesh.indexBuffer.offset)
-//            
-//        }
+        for submesh in mesh.submeshes {
+            renderEncoder.drawIndexedPrimitives(type: submesh.primitiveType,
+                                                indexCount: submesh.indexCount,
+                                                indexType: submesh.indexType,
+                                                indexBuffer: submesh.indexBuffer.buffer,
+                                                indexBufferOffset: submesh.indexBuffer.offset)
+
+        }
         
         renderEncoder.popDebugGroup()
         
@@ -605,4 +545,21 @@ func matrix4x4_translation(_ translationX: Float, _ translationY: Float, _ trans
 
 func radians_from_degrees(_ degrees: Float) -> Float {
     return (degrees / 180) * .pi
+}
+
+// Helper function to create an orthographic projection matrix
+func matrix_orthographic_projection(left: Float, right: Float, bottom: Float, top: Float, near: Float, far: Float) -> matrix_float4x4 {
+    let ral = right + left
+    let rsl = right - left
+    let tab = top + bottom
+    let tsb = top - bottom
+    let fan = far + near
+    let fsn = far - near
+    
+    return matrix_float4x4(columns: (
+        vector_float4(2.0 / rsl, 0, 0, 0),
+        vector_float4(0, 2.0 / tsb, 0, 0),
+        vector_float4(0, 0, -2.0 / fsn, 0),
+        vector_float4(-ral / rsl, -tab / tsb, -fan / fsn, 1)
+    ))
 }

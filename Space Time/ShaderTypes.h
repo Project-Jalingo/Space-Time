@@ -33,7 +33,7 @@ typedef NS_ENUM(EnumBackingType, BufferIndex)
 typedef NS_ENUM(EnumBackingType, VertexAttribute)
 {
     VertexAttributePosition = 0, // Vertex position attribute.
-    VertexAttributeTexcoord = 1, // Vertex texture coordinate attribute.
+   // VertexAttributeTexcoord = 1, // Vertex texture coordinate attribute.
 };
 
 // Enumeration for texture indices to identify textures in the shader.
@@ -48,7 +48,8 @@ typedef NS_ENUM(EnumBackingType, TextureIndex)
 typedef struct
 {
     matrix_float4x4 projectionMatrix; // Projection matrix for 3D projection.
-    matrix_float4x4 modelViewMatrix;  // Model-view matrix for model transformation and camera view.
+    matrix_float4x4 modelMatrix;  // Model-view matrix for model transformation and camera view.
+    matrix_float4x4 viewMatrix;  // Model-view matrix for model transformation and camera view.
     simd_float3 cameraPosition;
     float time;
 } Uniforms;
