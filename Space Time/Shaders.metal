@@ -15,7 +15,7 @@ using namespace metal;
 
 #define AA 2
 #define AB 2
-
+#define sphereDistance 50
 
 //struct Vertex{
 //    float3 position [[attribute(VertexAttributePosition)]];
@@ -30,9 +30,14 @@ using namespace metal;
 
 
 
-float4 returnSPH1(){
+float4 returnSPH(){
     float4 sph1 = float4(0.0,0.0,0.0,1.0);
     return sph1;
+}
+
+float4 returnSPH12(float3 cameraPosition, float3 cameraDirection, float distanceToFront) {
+    float3 sphereCenter = cameraPosition + normalize(cameraDirection) * distanceToFront;
+    return float4(sphereCenter, 1.0); // Assuming the sphere's radius is 1.0
 }
 
 //const float4 sph1 = float4(0.0,0.0,0.0,1.0);
@@ -69,8 +74,10 @@ float3 sphNormal(  float3 pos,  float4 sph )
     return (pos - sph.xyz)/sph.w;
 }
 
-float3 fancyCube(texture2d<float> texture, sampler sam,  float3 direction,  float s,  float b )
+float3 fancyCube2(texture2d<float> texture, sampler sam,  float3 direction,  float s,  float b )
 {
+    
+        
     //calculate the sampling coordinates based on direction
     float2 coordX = 0.5 + s * direction.yz/direction.x;
     float2 coordY = 0.5 + s * direction.zx/direction.y;
@@ -88,7 +95,22 @@ float3 fancyCube(texture2d<float> texture, sampler sam,  float3 direction,  floa
     return resultColor;
 }
 
-
+float3 fancyCube(texture2d<float> texture, sampler sam, float3 direction, float s, float b) {
+    // Calculate the sampling coordinates based on direction and ensure they tile by wrapping with fract
+    float2 coordX = fract(0.5 + s * direction.yz / direction.x);
+    float2 coordY = fract(0.5 + s * direction.zx / direction.y);
+    float2 coordZ = fract(0.5 + s * direction.xy / direction.z);
+    
+    // Sample texture at calculated coordinates
+    float3 colx = texture.sample(sam, coordX, level(b)).xyz;
+    float3 coly = texture.sample(sam, coordY, level(b)).xyz;
+    float3 colz = texture.sample(sam, coordZ, level(b)).xyz;
+    
+    // Calculate weighted color components
+    float3 n = direction * direction;
+    float3 resultColor = (colx * n.x + coly * n.y + colz * n.z) / (n.x + n.y + n.z);
+    return resultColor;
+}
 
 
 float2 hash( float2 p ) { p=float2(dot(p,float2(127.1,311.7)),dot(p,float2(269.5,183.3))); return fract(sin(p)*43758.5453); }
@@ -128,7 +150,7 @@ float3 background(  float3 direction,  float3 l ,
 
     float3 n = abs(direction);
     n = n * n * n;
-    
+    //(50.0 * direction.xy, 1.0);
     float2 vxy = voronoi( 50.0 * direction.xy );
     float2 vyz = voronoi( 50.0 * direction.yz );
     float2 vzx = voronoi( 50.0 * direction.zx );
@@ -150,12 +172,16 @@ float3 background(  float3 direction,  float3 l ,
 
 float rayTrace(  float3 ro,  float3 rd )
 {
-    return shpIntersect( ro, rd, returnSPH1() );
+    //return shpIntersect( ro, rd, returnSPH1(ro, rd, sphereDistance) );
+    return shpIntersect( ro, rd, returnSPH() );
+
 }
 
-float map(  float3 pos )
+float map(  float3 pos ,float3 ro,  float3 rd )
 {
-    float2 r = pos.xz - returnSPH1().xz;
+    //float2 r = pos.xz - returnSPH1(ro, rd, sphereDistance).xz;
+    float2 r = pos.xz - returnSPH().xz;
+
     float h = 1.0-2.0/(1.0+0.3*dot(r,r));
     return pos.y - h;
 }
@@ -172,119 +198,131 @@ float rayMarch(  float3 ro,  float3 rd, float tmax )
     for( int i=0; i<20; i++ )
     {
         float3 pos = ro + t*rd;
-        float h = map( pos );
+        float h = map( pos ,ro,rd);
         if( h<0.001 || t>tmax ) break;
         t += h;
     }
     return t;
 }
 
-float3 render( float3 ro, float3 rd ,texture2d<float> iChannel0, texture2d<float> iChannel1, sampler sam,float iTime)
-{
-    float3 lig = normalize( float3(1.0,0.2,1.0) );
-    float3 col = background( rd, lig, iChannel1, sam );
+// Renders the scene, calculating lighting, reflections, and environmental effects.
+float3 render( float3 rayOrigin, float3 rayDirection, texture2d<float> environmentTexture, texture2d<float> cloudTexture, sampler textureSampler, float time) {
     
-    // raytrace stuff
-    float t = rayTrace( ro, rd );
+    // Light direction for the scene
+    float3 lightDirection = normalize(float3(1.0, 0.2, 1.0));
+    
+    // Initial color calculated based on the background function
+    float3 color = background(rayDirection, lightDirection, cloudTexture, textureSampler);
+    
+    // Perform ray tracing to detect sphere intersection
+    float intersectionDistance = rayTrace(rayOrigin, rayDirection);
 
-    if( t>0.0 )
-    {
-        float3 mat = float3( 0.18 );
-        float3 pos = ro + t * rd;
-        float3 nor = sphNormal( pos, returnSPH1() );
-            
-        float am = 0.1*iTime;
-        float2 pr = float2( cos(am), sin(am) );
-        float3 tnor = nor;
-        tnor.xz = float2x2( float2(pr.x, -pr.y), float2(pr.y, pr.x )) * tnor.xz;
+    // If there is an intersection, calculate the color at the intersection point
+    if (intersectionDistance > 0.0) {
+        // Base material color
+        float3 materialColor = float3(0.18);
+        // Calculate the intersection position
+        float3 intersectionPosition = rayOrigin + intersectionDistance * rayDirection;
+        // Calculate normal at the intersection point
+        //float3 normal = sphNormal(intersectionPosition, returnSPH1(rayOrigin, rayDirection, sphereDistance));
+        float3 normal = sphNormal(intersectionPosition, returnSPH());
 
+        // Animation modifiers based on time
+        float animationModifier = 0.1 * time;
+        float2 phaseRotation = float2(cos(animationModifier), sin(animationModifier));
+        // Transformed normal for animation effect
+        float3 transformedNormal = normal;
+        transformedNormal.xz = float2x2(phaseRotation.x, -phaseRotation.y, phaseRotation.y, phaseRotation.x) * transformedNormal.xz;
 
-        float am2 = 0.08*iTime - 1.0*(1.0-nor.y*nor.y);
-        pr = float2( cos(am2), sin(am2) );
-        float3 tnor2 = nor;
-        tnor2.xz = float2x2( float2(pr.x, -pr.y), float2(pr.y, pr.x )) * tnor2.xz;
+        // Additional animation effect
+        float animationModifier2 = 0.08 * time - 1.0 * (1.0 - normal.y * normal.y);
+        phaseRotation = float2(cos(animationModifier2), sin(animationModifier2));
+        float3 transformedNormal2 = normal;
+        transformedNormal2.xz = float2x2(phaseRotation.x, -phaseRotation.y, phaseRotation.y, phaseRotation.x) * transformedNormal2.xz;
 
-        float3 ref = reflect( rd, nor );
-        float fre = clamp( 1.0+dot( nor, rd ), 0.0 ,1.0 );
+        // Reflection calculation for reflective materials
+        float3 reflection = reflect(rayDirection, normal);
+        float fresnelEffect = clamp(1.0 + dot(normal, rayDirection), 0.0, 1.0);
 
-        float l = fancyCube( iChannel0,sam,tnor, 0.03, 0.0 ).x;
-        l += -0.1 + 0.3*fancyCube( iChannel0,sam, tnor, 8.0, 0.0 ).x;
+        // Lighting effects based on the environment texture
+        float lightingEffect = fancyCube(environmentTexture, textureSampler, transformedNormal, 0.03, 0.0).x;
+        lightingEffect += -0.1 + 0.3 * fancyCube(environmentTexture, textureSampler, transformedNormal, 8.0, 0.0).x;
 
-        float3 sea  = mix( float3(0.0,0.07,0.2), float3(0.0,0.01,0.3), fre );
-        sea *= 0.15;
+        // Calculate sea and land colors based on lighting and Fresnel effects
+        float3 seaColor = mix(float3(0.0, 0.07, 0.2), float3(0.0, 0.01, 0.3), fresnelEffect) * 0.15;
+        float3 landColor = mix(float3(0.02, 0.04, 0.0), float3(0.05, 0.1, 0.0), smoothstep(0.4, 1.0, fancyCube(environmentTexture, textureSampler, transformedNormal, 0.1, 0.0).x)) * fancyCube(environmentTexture, textureSampler, transformedNormal, 0.3, 0.0).xyz * 0.5;
 
-        float3 land = float3(0.02,0.04,0.0);
-        land = mix( land, float3(0.05,0.1,0.0), smoothstep(0.4,1.0,fancyCube( iChannel0,sam, tnor, 0.1, 0.0 ).x ));
-        land *= fancyCube( iChannel0,sam, tnor, 0.3, 0.0 ).xyz;
-        land *= 0.5;
+        // Determine the material color based on the calculated sea and land colors
+        float landOrSea = smoothstep(0.45, 0.46, lightingEffect);
+        materialColor = mix(seaColor, landColor, landOrSea);
 
-        float los = smoothstep(0.45,0.46, l);
-        mat = mix( sea, land, los );
+        // Cloud effects
+        float3 cloudWrapEffect = -1.0 + 2.0 * fancyCube(cloudTexture, textureSampler, transformedNormal2.xzy, 0.025, 0.0).xyz;
+        float cloudDensity = fancyCube(cloudTexture, textureSampler, transformedNormal2 + 0.2 * cloudWrapEffect, 0.05, 0.0).y;
+        float clouds = smoothstep(0.3, 0.6, cloudDensity);
+        
+        // Combine material and cloud effects
+        materialColor = mix(materialColor, float3(0.93 * 0.15), clouds);
 
-        float3 wrap = -1.0 + 2.0 * fancyCube( iChannel1,sam, tnor2.xzy, 0.025, 0.0 ).xyz;
-        float cc1 = fancyCube( iChannel1,sam, tnor2 + 0.2*wrap, 0.05, 0.0 ).y;
-        float clouds = smoothstep( 0.3, 0.6, cc1 );
+        // Diffuse lighting calculation
+        float diffuse = clamp(dot(normal, lightDirection), 0.0, 1.0);
+        materialColor *= 0.8;
+        float3 linearColor = float3(3.0, 2.5, 2.0) * diffuse;
+        linearColor += 0.01;
+        color = materialColor * linearColor;
+        color = pow(color, float3(0.4545)); // Gamma correction
+        color += 0.6 * fresnelEffect * fresnelEffect * float3(0.9, 0.9, 1.0) * (0.3 + 0.7 * diffuse);
 
-        mat = mix( mat, float3(0.93*0.15), clouds );
-
-        float dif = clamp( dot(nor, lig), 0.0, 1.0 );
-        mat *= 0.8;
-        float3 lin  = float3(3.0,2.5,2.0)*dif;
-        lin += 0.01;
-        col = mat * lin;
-        col = pow( col, float3(0.4545) );
-        col += 0.6*fre*fre*float3(0.9,0.9,1.0)*(0.3+0.7*dif);
-
-        float spe = clamp( dot(ref,lig), 0.0, 1.0 );
-        float tspe = pow( spe, 3.0 ) + 0.5*pow( spe, 16.0 );
-        col += (1.0-0.5*los)*clamp(1.0-2.0*clouds,0.0,1.0)*0.3*float3(0.5,0.4,0.3)*tspe*dif;;
+        // Specular highlights
+        float specular = clamp(dot(reflection, lightDirection), 0.0, 1.0);
+        float totalSpecular = pow(specular, 3.0) + 0.5 * pow(specular, 16.0);
+        color += (1.0 - 0.5 * landOrSea) * clamp(1.0 - 2.0 * clouds, 0.0, 1.0) * 0.3 * float3(0.5, 0.4, 0.3) * totalSpecular * diffuse;
     }
     
-    // raymarch stuff
-    float tmax = 20.0;
-    if( t>0.0 ) tmax = t;
-    t = rayMarch( ro, rd, tmax );
-    if( t<tmax )
-    {
-        float3 pos = ro + t*rd;
+    // Raymarch additional elements if needed
+    float maximumDistance = 20.0;
+    if (intersectionDistance > 0.0) maximumDistance = intersectionDistance;
+    intersectionDistance = rayMarch(rayOrigin, rayDirection, maximumDistance);
+    if (intersectionDistance < maximumDistance) {
+        // Calculate position and wireframe effects if the raymarch finds an intersection
+        float3 position = rayOrigin + intersectionDistance * rayDirection;
+        float2 sinPattern = sin(2.0 * 6.2831 * position.xz);
+        float3 wireframeColor = float3(0.0);
+        wireframeColor += 1.0 * exp(-12.0 * abs(sinPattern.x));
+        wireframeColor += 1.0 * exp(-12.0 * abs(sinPattern.y));
+        wireframeColor += 0.5 * exp(-4.0 * abs(sinPattern.x));
+        wireframeColor += 0.5 * exp(-4.0 * abs(sinPattern.y));
+        //wireframeColor *= 0.2 + 1.0 * sphSoftShadow(position, lightDirection, returnSPH1(rayOrigin, rayDirection, sphereDistance), 4.0);
+        wireframeColor *= 0.2 + 1.0 * sphSoftShadow(position, lightDirection, returnSPH(), 4.0);
 
-        float2 scp = sin(2.0*6.2831*pos.xz);
-
-        float3 wir = float3( 0.0 );
-        wir += 1.0*exp(-12.0*abs(scp.x));
-        wir += 1.0*exp(-12.0*abs(scp.y));
-        wir += 0.5*exp( -4.0*abs(scp.x));
-        wir += 0.5*exp( -4.0*abs(scp.y));
-        wir *= 0.2 + 1.0*sphSoftShadow( pos, lig, returnSPH1(), 4.0 );
-
-        col += wir*0.5*exp( -0.05*t*t );
+        color += wireframeColor * 0.5 * exp(-0.05 * intersectionDistance * intersectionDistance);
     }
 
-    // outter glow
-    if( dot(rd,returnSPH1().xyz-ro)>0.0 )
-    {
-        float d = sphDistance( ro, rd, returnSPH1() );
-        float3 glo = float3(0.0);
-        glo += float3(0.6,0.7,1.0)*0.3*exp(-2.0*abs(d))*step(0.0,d);
-        glo += 0.6*float3(0.6,0.7,1.0)*0.3*exp(-8.0*abs(d));
-        glo += 0.6*float3(0.8,0.9,1.0)*0.4*exp(-100.0*abs(d));
-        col += glo*1.5;
+    // Outer glow effect for objects
+//    if (dot(rayDirection, returnSPH1(rayOrigin, rayDirection, sphereDistance).xyz - rayOrigin) > 0.0) {
+//        float distance = sphDistance(rayOrigin, rayDirection, returnSPH1(rayOrigin, rayDirection, sphereDistance));
+    if (dot(rayDirection, returnSPH().xyz - rayOrigin) > 0.0) {
+        float distance = sphDistance(rayOrigin, rayDirection, returnSPH());
+        float3 glow = float3(0.0);
+        glow += float3(0.6, 0.7, 1.0) * 0.3 * exp(-2.0 * abs(distance)) * step(0.0, distance);
+        glow += 0.6 * float3(0.6, 0.7, 1.0) * 0.3 * exp(-8.0 * abs(distance));
+        glow += 0.6 * float3(0.8, 0.9, 1.0) * 0.4 * exp(-100.0 * abs(distance));
+        color += glow * 1.5;
     }
-    col *= smoothstep( 0.0, 6.0, iTime );
+    // Apply time-based fading to the color
+    color *= smoothstep(0.0, 6.0, time);
 
-    return col;
+    return color;
 }
 
-float3x3 setCamera(  float3 ro,  float3 rt,  float cr )
-{
-    float3 cw = normalize(rt-ro);
-    float3 cp = float3(sin(cr), cos(cr),0.0);
-    float3 cu = normalize( cross(cw,cp) );
-    float3 cv = normalize( cross(cu,cw) );
-    return float3x3( cu, cv, -cw );
+// Sets up the camera matrix based on the camera's position, target, and roll angle.
+float3x3 setCamera(float3 cameraPosition, float3 cameraTarget, float cameraRoll) {
+    float3 forwardVector = normalize(cameraTarget - cameraPosition);
+    float3 rightVector = float3(sin(cameraRoll), cos(cameraRoll), 0.0);
+    float3 upVector = normalize(cross(forwardVector, rightVector));
+    float3 correctedRightVector = normalize(cross(upVector, forwardVector));
+    return float3x3(correctedRightVector, upVector, -forwardVector);
 }
-
-
 
 //struct PoseConstants {
 //    float4x4 projectionMatrix;
@@ -337,8 +375,9 @@ vertex VertexOut vertexShader(const VertexIn in [[stage_in]],
     // Transform vertex positions to clip space
     //out.position = uniforms.projectionMatrix * clipPositions;// uniforms.modelViewMatrix * float4(in.position, 1.0f);
     
-    //out.position = uniforms.projectionMatrix * uniforms.viewMatrix * uniforms.modelMatrix * float4(in.position, 1.0f);
-    out.position = float4(in.position, 1.0f);
+    out.position = uniforms.projectionMatrix  * uniforms.viewMatrix * uniforms.modelMatrix * float4(in.position, 1.0f);
+    //* uniforms.viewMatrix * uniforms.modelMatrix
+    //out.position = float4(in.position, 1.0f);
     //out.position = float4(in.position, 1.0f);
     // The ray origin is the camera position in world space, already provided in uniforms.
     out.RayOri = uniforms.cameraPosition;
@@ -365,25 +404,62 @@ vertex VertexOut vertexShader(const VertexIn in [[stage_in]],
 }
 
 
-fragment float4 fragmentShader(VertexOut in [[stage_in]],
-                               //constant Uniforms &uniformsArra [[buffer(0)]],
-                              texture2d<float> iChannel1 [[texture(2)]],
-                              texture2d<float> iChannel0 [[texture(1)]]) {
+//fragment float4 fragmentShader(VertexOut in [[stage_in]],
+//                               constant UniformsArray &uniformsArray [[buffer(0)]],
+//                              texture2d<float> iChannel1 [[texture(2)]],
+//                              texture2d<float> iChannel0 [[texture(1)]]) {
+//    
+//    // access the first set of uniforms
+//    constant Uniforms& uniforms = uniformsArray.uniforms[0];
+//    
+//    float4 finalColor = float4(1,0,0,1);
+//    
+//    float cameraPositionX = uniforms.viewMatrix.columns[3][0];
+//    float zo = 1.0 + smoothstep( 5.0, 15.0, abs(in.time-48.0) );
+//
+//
+//    float an = 3.0 + 0.05 * in.time + 6.0 * cameraX/2732;
+//    
+////  float an = 3.0 + 0.05 * in.time + 6.0 * cameraX/iResolution.x;
+////  2732 X 2048
+//    
+//    float3 ro = zo * float3( 2.0 * cos(an), 1.0, 2.0 * sin(an) );
+//    float3 rt = float3( 1.0, 0.0, 0.0 );
+//    float3x3 cam = setCamera( ro, rt, 0.35 );
+//    sampler sam;
+//    //finalColor.xyz = render(in.RayOri, in.RayDir, iChannel0, iChannel1, sam, in.time);
+//    finalColor.xyz = render(ro+cam * in.RayOri, cam * in.RayDir, iChannel0, iChannel1, sam, in.time);
+//    return finalColor;
+//    //return float4(1,0,0,1);
+//}
+fragment float4 fragmentShader(VertexOut vertexOutput [[stage_in]],
+                               constant UniformsArray &shaderUniformsArray [[buffer(0)]],
+                               texture2d<float> stars [[texture(2)]],
+                               texture2d<float> map [[texture(1)]]) {
     
-    float4 finalColor = float4(1,0,0,1);
+    // Access the first set of uniforms
+    constant Uniforms& uniforms = shaderUniformsArray.uniforms[0];
+    float4 outputColor = float4(1,0,0,1);
+    float cameraPositionX = uniforms.viewMatrix.columns[0][0];
+    float zoomFactor = 1.0 + smoothstep(5.0, 15.0, abs(vertexOutput.time - 48.0));
+    float angleOffset = 3.0 + 0.05 * vertexOutput.time + 6.0 * cameraPositionX / 2732;
+    float3 rayOrigin = zoomFactor * float3(2.0 * cos(angleOffset), 1.0, 2.0 * sin(angleOffset));
+    float3 rayTarget = vertexOutput.RayDir;//float3(1.0, 0.0, 0.0);
+    float3x3 cameraMatrix = setCamera(rayOrigin, rayTarget, 0.35);
+    sampler samplerState;
     
-    float zo = 1.0 + smoothstep( 5.0, 15.0, abs(in.time-48.0) );
-    float an = 3.0 + 0.05 * in.time;
-    float3 ro = zo * float3( 2.0 * cos(an), 1.0, 2.0 * sin(an) );
-    float3 rt = float3( 1.0, 0.0, 0.0 );
-    float3x3 cam = setCamera( ro, rt, 0.35 );
+    // Calculate ray direction for this fragment
+    float3 rayDir = normalize(cameraMatrix * vertexOutput.RayDir);
     
-    sampler sam;
     
-    //finalColor.xyz = render(in.RayOri, in.RayDir, iChannel0, iChannel1, sam, in.time);
-    finalColor.xyz = render(ro+cam * in.RayOri, cam * in.RayDir, iChannel0, iChannel1, sam, in.time);
-    return finalColor;
-    //return float4(1,0,0,1);
+    //outputColor.xyz = render(vertexOutput.RayOri, vertexOutput.RayDir, stars, map, samplerState, vertexOutput.time);
+    outputColor.xyz = render(rayOrigin , rayDir, map, stars, samplerState, vertexOutput.time);
+    
+    // Apply a vignette effect based on fragment position
+    //float2 q = vertexOutput.position.xy / 2732;
+    //outputColor.xyz *= 0.2 + 0.8 * pow(16.0 * q.x * q.y * (1.0 - q.x) * (1.0 - q.y), 0.1);
+    
+    return outputColor;
 }
 
 

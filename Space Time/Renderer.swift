@@ -334,7 +334,11 @@ class Renderer {
         
         let rotationAxis = SIMD3<Float>(1, 1, 0)
 
-        
+       // if let drawable = layerRenderer.queryNextFrame() {
+        let viewportWidth = drawable.colorTextures.first?.width ?? 0
+        let viewportHeight = drawable.colorTextures.first?.height ?? 0
+            // Now you have a viewport size you can pass to your shaders
+       // }
         
         let modelRotationMatrix = matrix4x4_rotation(radians: rotation, axis: rotationAxis)
         let modelTranslationMatrix = matrix4x4_translation(0.0, 0.0, -1.0)
