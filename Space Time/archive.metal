@@ -1,4 +1,15 @@
 ////
+////  archive.metal
+////  Space Time
+////
+////  Created by User1 on 2/18/24.
+////
+//
+//#include <metal_stdlib>
+//using namespace metal;
+//
+//
+////
 ////  Shaders.metal
 ////
 //// Oluwasanmi Adenaiye MD MS 01.24.2024
@@ -19,10 +30,14 @@
 //
 //
 //float4 returnSPH(){
-//    float4 sph1 = float4(0.0,0.0,0.0,0.80);
+//    float4 sph1 = float4(0.0,0.0,0.0,0.20);
 //    return sph1;
 //}
 //
+////float4 returnSPH12(float3 cameraPosition, float3 cameraDirection, float distanceToFront) {
+////    float3 sphereCenter = cameraPosition + normalize(cameraDirection) * distanceToFront;
+////    return float4(sphereCenter, 1.0); // Assuming the sphere's radius is 1.0
+////}
 //
 //float shpIntersect(float3 ro, float3 rd, float4 sph )
 //{
@@ -166,37 +181,33 @@
 //
 //}
 //
-float map(  float3 pos ,float3 ro,  float3 rd )
-{
-    //float2 r = pos.xz - returnSPH1(ro, rd, sphereDistance).xz;
-    float2 r = pos.xz - returnSPH().xz;
-
-    float h = 1.0-2.0/(1.0+0.3*dot(r,r));
-    return pos.y - h;
-}
-
-float adjustVerticalPositionEarth(float3 position) {
-    float2 positionOffset = position.xz - returnSPH().xz; // Offset in the horizontal plane
-    float heightAdjustmentFactor = 1.0 - 2.0 / (1.0 + 0.3 * dot(positionOffset, positionOffset));
-    return position.y - heightAdjustmentFactor; // Adjust the vertical position
-}
-
-float marchRayThroughSpace(float3 rayOrigin, float3 rayDirection, float maxDistance) {
-    float traveledDistance = 0.0;
-
-    // Check for intersection with a horizontal plane at y = 1.0
-    float initialHeightIntersection = (1.0 - rayOrigin.y) / rayDirection.y;
-    if (initialHeightIntersection > 0.0) traveledDistance = initialHeightIntersection;
-
-    // March the ray
-    for (int step = 0; step < 20; step++) {
-        float3 currentPosition = rayOrigin + traveledDistance * rayDirection;
-        float heightAdjustment = calculateMinimumDistanceToEarth(currentPosition);
-        if (heightAdjustment < 0.001 || traveledDistance > maxDistance) break; // Stop if close to surface or max distance reached
-        traveledDistance += heightAdjustment;
-    }
-    return traveledDistance;
-}
+//float map(  float3 pos ,float3 ro,  float3 rd )
+//{
+//    //float2 r = pos.xz - returnSPH1(ro, rd, sphereDistance).xz;
+//    float2 r = pos.xz - returnSPH().xz;
+//
+//    float h = 1.0-2.0/(1.0+0.3*dot(r,r));
+//    return pos.y - h;
+//}
+//
+//float rayMarch(  float3 ro,  float3 rd, float tmax )
+//{
+//    float t = 0.0;
+//    
+//    // bounding plane
+//    float h = (1.0-ro.y)/rd.y;
+//    if( h>0.0 ) t=h;
+//
+//    // raymarch
+//    for( int i=0; i<20; i++ )
+//    {
+//        float3 pos = ro + t*rd;
+//        float h = map( pos ,ro,rd);
+//        if( h<0.001 || t>tmax ) break;
+//        t += h;
+//    }
+//    return t;
+//}
 //
 //// Renders the scene, calculating lighting, reflections, and environmental effects.
 //float3 render( float3 rayOrigin, float3 rayDirection, texture2d<float> environmentTexture, texture2d<float> cloudTexture, sampler textureSampler, float time) {
@@ -399,3 +410,103 @@ float marchRayThroughSpace(float3 rayOrigin, float3 rayDirection, float maxDista
 //}
 //
 //
+//
+////vertex ColorInOut vertexShader(Vertex in [[stage_in]],
+////                               ushort amp_id [[amplification_id]],
+////                               constant UniformsArray & uniformsArray [[ buffer(BufferIndexUniforms) ]])
+////{
+////    ColorInOut out;
+////
+////    Uniforms uniforms = uniformsArray.uniforms[amp_id];
+////
+////    float4 position = float4(in.position, 1.0);
+////    out.position = uniforms.projectionMatrix * uniforms.modelViewMatrix * position;
+////
+////
+////    out.texCoord = in.texCoord;
+////
+////    return out;
+////}
+////
+////fragment float4 fragmentShader(ColorInOut input [[stage_in]],
+////               texture2d<float> iChannel0 [[texture(0)]],
+////               texture2d<float> iChannel1 [[texture(1)]],
+////               sampler sam [[sampler(0)]],
+////                constant float &iTime [[buffer(0)]], //cuurent time in seconds
+////                constant float2 &iResolution [[buffer(1)]], //it seems this should be float3
+////               constant int &iFrame [[buffer(2)]])
+////{
+////    float3 accumulatedColor = float3(0.0);
+////
+////
+////    // number of samples per axis for antialiasing, adjust as needed
+////    int ZERO = min(iFrame,0); //use whichever is lower between 0 and iFrame
+////
+////    for( int sampleX = ZERO; sampleX < AA; ++sampleX){
+////        for( int sampleY = ZERO; sampleY < AA; ++sampleY){
+////
+////            //calculate the offset for the current sub-pixel
+////            //float2 subPixelOffset = float2(float(sampleX),float(sampleY)) / float(AA) - 0.5;
+////
+////            // Calculate sub-pixel offset for anti-aliasing
+////            float2 subPixelOffset = (float2(sampleX, sampleY) + 0.5) / float(AA) - 0.5;
+////
+////            //adjust coords with sub
+//////            float2 adjustedCoordinates = (2.0 * (input.texCoord + subPixelOffset) - iResolution) / iResolution.y;
+////
+////
+////            // Adjust texture coordinates with sub-pixel offset and normalize
+////                        float2 adjustedCoordinates = (2.0 * (input.texCoord + subPixelOffset) - 1.0) * float2(iResolution.x / iResolution.y, 1.0);
+////
+////
+//////            float3 rayDirection = normalize(float3(adjustedCoordinates, -2.0));
+////
+////            // Calculate ray direction for current sub-pixel
+////            float3 rayDirection = normalize(float3(adjustedCoordinates, -1.0));
+////
+////            //float3 rayOrigin;
+////
+////            // Define or calculate the ray origin based on your scene setup
+////            // This example assumes a fixed origin for simplicity
+////            float3 rayOrigin = float3(0.0, 0.0, 5.0); // Example origin
+////
+////            //accumulatedColor += render(rayOrigin,rayDirection,iChannel0,iChannel1,sam,iTime);
+////            // Accumulate color from rendering function
+////            accumulatedColor += render(rayOrigin, rayDirection, iChannel0, iChannel1, sam, iTime);
+////        }
+////    }
+////
+////    // Average the accumulated color by the number of samples
+////    accumulatedColor /= float(AA * AA);
+////
+////    // Apply a simple vignette effect based on texture coordinates to reduce brightness at the edges
+////    float2 normalizedCoordinates = input.texCoord/iResolution;
+//////    accumulatedColor * = 0.2 + 0.8 * pow(16.0, normalizedCoordinates.x *normalizedCoordinates.y * (1.0 - normalizedCoordinates.x) * 91.0 - normalizedCoordinates.y),0.1);
+////
+////    float vignette = 0.2 + 0.8 * pow(16.0 * normalizedCoordinates.x * normalizedCoordinates.y * (1.0 - normalizedCoordinates.x) * (1.0 - normalizedCoordinates.y), 0.1);
+////    accumulatedColor *= vignette;
+////
+////
+////    // Convert the accumulated linear color to sRGB space before output
+////    float4 outputColor = float4(pow(accumulatedColor, 1.0/2.2), 1.0);//this should be skipped later
+////    return outputColor;// so should this
+////
+////    {
+////        // pixel coordinates
+////        float2 o = float2(float(m),float(n)) / float(AA) - 0.5;
+////        float2 p = ((2 * input.texCoord)-1); // (2.0*(fragCoord+o)-iResolution.xy)/iResolution.y;
+////        float zo = 1.0 + smoothstep( 5.0, 15.0, abs(iTime - 48.0) );
+////        float an = 3.0 + 0.05* iTime + 6.0 * cameraPosition;//iMouse.x/iResolution.x;
+////        float3 ro = zo * float3(2.0 * cos(an), 1.0, 2.0 * sin(an));
+////        float3 rt = float3( 1.0, 0.0, 0.0 );
+////        mat3 cam = setCamera( ro, rt, 0.35 );
+////        float3 rd = normalize( cam * float3( p, -2.0) );
+////        col += render( ro, rd ); //ray origin and ray direction returns color based on light, shadow, relections e.t.c.
+////    }
+////
+////    col /= float(AA*AA);
+////    float2 q = fragCoord / iResolution.xy;
+////    col *= 0.2 + 0.8*pow( 16.0*q.x*q.y*(1.0-q.x)*(1.0-q.y), 0.1 );
+////    fragColor = float4( col, 1.0 );
+////
+////}
