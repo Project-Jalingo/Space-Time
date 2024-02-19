@@ -17,7 +17,7 @@
 		7FC497772AE9719700667A87 /* Space_TimeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC497762AE9719700667A87 /* Space_TimeApp.swift */; };
 		7FC497792AE9719700667A87 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC497782AE9719700667A87 /* ContentView.swift */; };
 		7FC4977B2AE9719700667A87 /* Renderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC4977A2AE9719700667A87 /* Renderer.swift */; };
-		7FC4977D2AE9719700667A87 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 7FC4977C2AE9719700667A87 /* Shaders.metal */; };
+		7FC4977D2AE9719700667A87 /* Earth.metal in Sources */ = {isa = PBXBuildFile; fileRef = 7FC4977C2AE9719700667A87 /* Earth.metal */; };
 		7FC497812AE9719700667A87 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7FC497802AE9719700667A87 /* Preview Assets.xcassets */; };
 		7FC497832AE9719800667A87 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7FC497822AE9719800667A87 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
@@ -34,7 +34,7 @@
 		7FC497762AE9719700667A87 /* Space_TimeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Space_TimeApp.swift; sourceTree = "<group>"; };
 		7FC497782AE9719700667A87 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		7FC4977A2AE9719700667A87 /* Renderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Renderer.swift; sourceTree = "<group>"; };
-		7FC4977C2AE9719700667A87 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
+		7FC4977C2AE9719700667A87 /* Earth.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Earth.metal; sourceTree = "<group>"; };
 		7FC4977E2AE9719700667A87 /* ShaderTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ShaderTypes.h; sourceTree = "<group>"; };
 		7FC497802AE9719700667A87 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		7FC497822AE9719800667A87 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -76,7 +76,7 @@
 				7FC497762AE9719700667A87 /* Space_TimeApp.swift */,
 				7FC497782AE9719700667A87 /* ContentView.swift */,
 				7FC4977A2AE9719700667A87 /* Renderer.swift */,
-				7FC4977C2AE9719700667A87 /* Shaders.metal */,
+				7FC4977C2AE9719700667A87 /* Earth.metal */,
 				7FC4977E2AE9719700667A87 /* ShaderTypes.h */,
 				7F878A382B82A94400956925 /* Planetorium.metal */,
 				7F878A3C2B82CD4800956925 /* FlyingEarth.metal */,
@@ -185,7 +185,7 @@
 			files = (
 				7F878A3B2B82B8D600956925 /* archive.metal in Sources */,
 				7F878A392B82A94400956925 /* Planetorium.metal in Sources */,
-				7FC4977D2AE9719700667A87 /* Shaders.metal in Sources */,
+				7FC4977D2AE9719700667A87 /* Earth.metal in Sources */,
 				7F878A3D2B82CD4800956925 /* FlyingEarth.metal in Sources */,
 				7FC497792AE9719700667A87 /* ContentView.swift in Sources */,
 				7FC4977B2AE9719700667A87 /* Renderer.swift in Sources */,
