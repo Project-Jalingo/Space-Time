@@ -290,13 +290,11 @@
 //        wireframeColor += 0.5 * exp(-4.0 * abs(sinPattern.y));
 //        //wireframeColor *= 0.2 + 1.0 * sphSoftShadow(position, lightDirection, returnSPH1(rayOrigin, rayDirection, sphereDistance), 4.0);
 //        wireframeColor *= 0.2 + 1.0 * sphereSoftShadow(position, lightDirection, returnSPH(), 4.0);
-//
+//        
 //        color += wireframeColor * 0.5 * exp(-0.05 * intersectionDistance * intersectionDistance);
 //    }
 //
 //    // Outer glow effect for objects
-////    if (dot(rayDirection, returnSPH1(rayOrigin, rayDirection, sphereDistance).xyz - rayOrigin) > 0.0) {
-////        float distance = sphDistance(rayOrigin, rayDirection, returnSPH1(rayOrigin, rayDirection, sphereDistance));
 //    if (dot(rayDirection, returnSPH().xyz - rayOrigin) > 0.0) {
 //        float distance = sphereSurfaceDistance(rayOrigin, rayDirection, returnSPH());
 //        float3 glow = float3(0.0);
