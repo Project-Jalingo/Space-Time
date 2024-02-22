@@ -10,11 +10,19 @@ import Spatial
 
 // The 256 byte aligned size of our uniform structure
 let alignedUniformsSize = (MemoryLayout<UniformsArray>.size + 0xFF) & -0x100
-
 let maxBuffersInFlight = 3
 
 enum RendererError: Error {
     case badVertexDescriptor
+}
+
+enum DisplayMode: String, CaseIterable, Identifiable {
+
+    case all = "All planets"
+    case earth = "Earth only"
+    
+    var id: String { self.rawValue }
+
 }
 
 extension LayerRenderer.Clock.Instant.Duration {
@@ -24,24 +32,24 @@ extension LayerRenderer.Clock.Instant.Duration {
     }
 }
 
-class Renderer {
+class Renderer: ObservableObject  {
 
     public let device: MTLDevice
     let commandQueue: MTLCommandQueue
     var dynamicUniformBuffer: MTLBuffer
-    
-    var pipelineState: MTLRenderPipelineState
+    //var displayMode: DisplayMode = .all
+    @Published var displayMode: DisplayMode = .all
+
+    var pipelineState: MTLRenderPipelineState!
+    var pipelineStateAll: MTLRenderPipelineState!
+    var pipelineStateEarth: MTLRenderPipelineState!
     var depthState: MTLDepthStencilState
-    //var colorMap: MTLTexture
     var globe: MTLTexture
     var stars: MTLTexture
     var startTime: TimeInterval = CACurrentMediaTime()
-
-    
     let inFlightSemaphore = DispatchSemaphore(value: maxBuffersInFlight)
     var uniformBufferOffset = 0
     var uniformBufferIndex = 0
-
     var uniforms: UnsafeMutablePointer<UniformsArray>
     var rotation: Float = 0
     var mesh: MTKMesh
@@ -53,6 +61,10 @@ class Renderer {
         self.layerRenderer = layerRenderer
         self.device = layerRenderer.device
         self.commandQueue = self.device.makeCommandQueue()!
+        self.pipelineState = nil
+        self.pipelineStateAll = nil
+        self.pipelineStateEarth = nil
+        //self.pipelineState =
         let uniformBufferSize = alignedUniformsSize * maxBuffersInFlight
 
         self.dynamicUniformBuffer = self.device.makeBuffer(length:uniformBufferSize,
@@ -63,25 +75,11 @@ class Renderer {
         uniforms = UnsafeMutableRawPointer(dynamicUniformBuffer.contents()).bindMemory(to:UniformsArray.self, capacity:1)
 
         let mtlVertexDescriptor = Renderer.buildMetalVertexDescriptor()
-
-        do {
-            pipelineState = try Renderer.buildRenderPipelineWithDevice(device: device,
-                                                                       layerRenderer: layerRenderer,
-                                                                       mtlVertexDescriptor: mtlVertexDescriptor)
-        } catch {
-            fatalError("Unable to compile render pipeline state.  Error info: \(error)")
-        }
-
         let depthStateDescriptor = MTLDepthStencilDescriptor()
         depthStateDescriptor.depthCompareFunction = MTLCompareFunction.greater
         depthStateDescriptor.isDepthWriteEnabled = true
         self.depthState = device.makeDepthStencilState(descriptor:depthStateDescriptor)!
         
-//        do {
-//            mesh = try Renderer.buildMesh(device: device, mtlVertexDescriptor: mtlVertexDescriptor)
-//        } catch {
-//            fatalError("Unable to build MetalKit Mesh. Error info: \(error)")
-//        }
 
         do {
             mesh = try Renderer.buildFullScreenQuad(device: device, mtlVertexDescriptor: mtlVertexDescriptor)
@@ -89,12 +87,6 @@ class Renderer {
         } catch {
             fatalError("Unable to build MetalKit Mesh. Error info: \(error)")
         }
-//        do {
-//            colorMap = try Renderer.loadTexture(device: device, textureName: "ColorMap")
-//        } catch {
-//            fatalError("Unable to load texture. Error info: \(error)")
-//        }
-        
         do {
             globe = try Renderer.loadTexturePNG(device: device, textureName: "globe")
         } catch {
@@ -107,8 +99,20 @@ class Renderer {
             fatalError("Unable to load stars. Error info: \(error)")
         }
         
+        
         worldTracking = WorldTrackingProvider()
         arSession = ARKitSession()
+        
+        do {
+            initializePipelineStates()
+//            pipelineState = try Renderer.buildRenderPipelineWithDevice(device: device,
+//                                                                       layerRenderer: layerRenderer,
+//                                                                       mtlVertexDescriptor: mtlVertexDescriptor,
+//                                                                       vertexFunctionName: "String",
+//                                                                       fragmentFunctionName: "String")
+        } catch {
+            fatalError("Unable to compile render pipeline state.  Error info: \(error)")
+        }
     }
     
     func startRenderLoop() {
@@ -145,27 +149,26 @@ class Renderer {
            return mtlVertexDescriptor
     }
 
-    class func buildRenderPipelineWithDevice(device: MTLDevice,
-                                             layerRenderer: LayerRenderer,
-                                             mtlVertexDescriptor: MTLVertexDescriptor) throws -> MTLRenderPipelineState {
-        
+        class func buildRenderPipelineWithDevice(device: MTLDevice,
+                                                 layerRenderer: LayerRenderer,
+                                                 mtlVertexDescriptor: MTLVertexDescriptor,
+                                                 vertexFunctionName: String,
+                                                 fragmentFunctionName: String) throws -> MTLRenderPipelineState {
+
         // Build a render state pipeline object
         let library = device.makeDefaultLibrary()
 
-        let vertexFunction = library?.makeFunction(name: "vertexShader")
-        let fragmentFunction = library?.makeFunction(name: "fragmentShader")
+        let vertexFunction = library?.makeFunction(name: vertexFunctionName)
+        let fragmentFunction = library?.makeFunction(name: fragmentFunctionName)
 
         let pipelineDescriptor = MTLRenderPipelineDescriptor()
         pipelineDescriptor.label = "RenderPipeline"
         pipelineDescriptor.vertexFunction = vertexFunction
         pipelineDescriptor.fragmentFunction = fragmentFunction
         pipelineDescriptor.vertexDescriptor = mtlVertexDescriptor
-
         pipelineDescriptor.colorAttachments[0].pixelFormat = layerRenderer.configuration.colorFormat
         pipelineDescriptor.depthAttachmentPixelFormat = layerRenderer.configuration.depthFormat
-
         pipelineDescriptor.maxVertexAmplificationCount = layerRenderer.properties.viewCount
-        
         return try device.makeRenderPipelineState(descriptor: pipelineDescriptor)
     }
 
@@ -378,6 +381,28 @@ class Renderer {
         //rotation += 0.01
     }
 
+    
+    func initializePipelineStates() {
+        do {
+            pipelineStateAll = try Renderer.buildRenderPipelineWithDevice(
+                device: device,
+                layerRenderer: layerRenderer,
+                mtlVertexDescriptor: Renderer.buildMetalVertexDescriptor(),
+                vertexFunctionName: "vertexShaderAll", // Update these names to match your actual shader function names
+                fragmentFunctionName: "fragmentShaderAll"
+            )
+            pipelineStateEarth = try Renderer.buildRenderPipelineWithDevice(
+                device: device,
+                layerRenderer: layerRenderer,
+                mtlVertexDescriptor: Renderer.buildMetalVertexDescriptor(),
+                vertexFunctionName: "vertexShaderEarth", // Update these names accordingly
+                fragmentFunctionName: "fragmentShaderEarth"
+            )
+        } catch {
+            fatalError("Unable to compile render pipeline state. Error info: \(error)")
+        }
+    }
+
     func renderFrame() {
         /// Per frame updates hare
 
@@ -446,7 +471,14 @@ class Renderer {
         
         renderEncoder.setFrontFacing(.counterClockwise)
         
-        renderEncoder.setRenderPipelineState(pipelineState)
+        //renderEncoder.setRenderPipelineState(pipelineState)
+        // Determine and safely unwrap the correct pipeline state based on displayMode
+        if let pipelineState = (displayMode == .all) ? pipelineStateAll : pipelineStateEarth {
+            renderEncoder.setRenderPipelineState(pipelineState)
+        } else {
+            // Handle the case where the pipeline state could not be unwrapped (e.g., because it's nil)
+            fatalError("Pipeline state is nil")
+        }
         
         renderEncoder.setDepthStencilState(depthState)
         
@@ -567,3 +599,117 @@ func matrix_orthographic_projection(left: Float, right: Float, bottom: Float, to
         vector_float4(-ral / rsl, -tab / tsb, -fan / fsn, 1)
     ))
 }
+
+//enum RendererError: Error {
+//    case badVertexDescriptor
+//    case textureLoadingFailed(resourceName: String)
+//    case pipelineStateCreationFailed
+//    case commandQueueCreationFailed
+//    case bufferAllocationFailed
+//}
+//
+//class Renderer {
+//    var device: MTLDevice
+//    var commandQueue: MTLCommandQueue
+//    var dynamicUniformBuffer: MTLBuffer
+//    var displayMode: DisplayMode = .all
+//    var pipelineStateAll: MTLRenderPipelineState?
+//    var pipelineStateEarth: MTLRenderPipelineState?
+//    var depthState: MTLDepthStencilState?
+//    var mesh: MTKMesh
+//    var globe: MTLTexture?
+//    var stars: MTLTexture?
+//    let inFlightSemaphore: DispatchSemaphore
+//    var uniformBufferOffset = 0
+//    var uniformBufferIndex = 0
+//    var uniforms: UnsafeMutablePointer<UniformsArray>?
+//    var rotation: Float = 0
+//    let maxBuffersInFlight = 3
+//
+//    init(device: MTLDevice) throws {
+//        self.device = device
+//        guard let commandQueue = device.makeCommandQueue() else {
+//            throw RendererError.commandQueueCreationFailed
+//        }
+//        self.commandQueue = commandQueue
+//        self.inFlightSemaphore = DispatchSemaphore(value: maxBuffersInFlight)
+//        self.mesh = try Renderer.buildFullScreenQuad(device: device)
+//
+//        try self.initializeBuffers()
+//        try self.initializeDepthState()
+//        try self.loadAssets()
+//        try self.initializePipelineStates()
+//    }
+//
+//    private func initializeBuffers() throws {
+//        let alignedUniformsSize = (MemoryLayout<UniformsArray>.size + 0xFF) & ~0xFF
+//        let uniformBufferSize = alignedUniformsSize * maxBuffersInFlight
+//        guard let buffer = device.makeBuffer(length: uniformBufferSize, options: [.storageModeShared]) else {
+//            throw RendererError.bufferAllocationFailed
+//        }
+//        self.dynamicUniformBuffer = buffer
+//        self.uniforms = UnsafeMutableRawPointer(dynamicUniformBuffer.contents()).bindMemory(to: UniformsArray.self, capacity: 1)
+//    }
+//
+//    private func initializeDepthState() throws {
+//        let depthStateDescriptor = MTLDepthStencilDescriptor()
+//        depthStateDescriptor.depthCompareFunction = .greater
+//        depthStateDescriptor.isDepthWriteEnabled = true
+//        guard let state = device.makeDepthStencilState(descriptor: depthStateDescriptor) else {
+//            throw RendererError.pipelineStateCreationFailed
+//        }
+//        self.depthState = state
+//    }
+//
+//    private func loadAssets() throws {
+//        self.globe = try Renderer.loadTexture(device: device, textureName: "globe", extension: "png")
+//        self.stars = try Renderer.loadTexture(device: device, textureName: "stars", extension: "jpg")
+//    }
+//
+//    private func initializePipelineStates() throws {
+//        self.pipelineStateAll = try buildRenderPipelineState(vertexFunctionName: "vertexShaderAll", fragmentFunctionName: "fragmentShaderAll")
+//        self.pipelineStateEarth = try buildRenderPipelineState(vertexFunctionName: "vertexShaderEarth", fragmentFunctionName: "fragmentShaderEarth")
+//    }
+//
+//    private func buildRenderPipelineState(vertexFunctionName: String, fragmentFunctionName: String) throws -> MTLRenderPipelineState {
+//        guard let library = device.makeDefaultLibrary() else {
+//            throw RendererError.pipelineStateCreationFailed
+//        }
+//        guard let vertexFunction = library.makeFunction(name: vertexFunctionName),
+//              let fragmentFunction = library.makeFunction(name: fragmentFunctionName) else {
+//            throw RendererError.pipelineStateCreationFailed
+//        }
+//        let descriptor = MTLRenderPipelineDescriptor()
+//        descriptor.vertexFunction = vertexFunction
+//        descriptor.fragmentFunction = fragmentFunction
+//        descriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
+//        descriptor.depthAttachmentPixelFormat = .depth32Float
+//        return try device.makeRenderPipelineState(descriptor: descriptor)
+//    }
+//
+//    class func loadTexture(device: MTLDevice, textureName: String, extension ext: String) throws -> MTLTexture {
+//        let textureLoader = MTKTextureLoader(device: device)
+//        guard let url = Bundle.main.url(forResource: textureName, withExtension: ext) else {
+//            throw RendererError.textureLoadingFailed(resourceName: textureName)
+//        }
+//        let options: [MTKTextureLoader.Option: Any] = [
+//            .textureUsage: NSNumber(value: MTLTextureUsage.shaderRead.rawValue),
+//            .textureStorageMode: NSNumber(value: MTLStorageMode.`private`.rawValue)
+//        ]
+//        return try textureLoader.newTexture(URL: url, options: options)
+//    }
+//    
+//    func updateDynamicBufferState() {
+//        uniformBufferIndex = (uniformBufferIndex + 1) % maxBuffersInFlight
+//        uniformBufferOffset = ((MemoryLayout<UniformsArray>.size + 0xFF) & ~0xFF) * uniformBufferIndex
+//        uniforms = UnsafeMutableRawPointer(dynamicUniformBuffer.contents() + uniformBufferOffset).bindMemory(to: UniformsArray.self, capacity: 1)
+//    }
+//
+//    
+//
+//    class func buildFullScreenQuad(device: MTLDevice) throws -> MTKMesh {
+//        // Implementation of full screen quad creation
+//    }
+//
+//    // Additional methods like rendering, updating, etc.
+//}

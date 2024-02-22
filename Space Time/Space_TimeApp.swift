@@ -20,6 +20,21 @@ struct ContentStageConfiguration: CompositorLayerConfiguration {
     }
 }
 
+class RendererManager: ObservableObject {
+    static let shared = RendererManager()
+    @Published var currentRenderer: Renderer?
+
+    func createRenderer(with layerRenderer: LayerRenderer) {
+        let renderer = Renderer(layerRenderer)
+        renderer.startRenderLoop()
+        self.currentRenderer = renderer
+    }
+
+    func updateDisplayMode(_ mode: DisplayMode) {
+        currentRenderer?.displayMode = mode
+    }
+}
+
 @main
 struct TestingApp: App {
     var body: some Scene {
@@ -29,8 +44,10 @@ struct TestingApp: App {
 
         ImmersiveSpace(id: "ImmersiveSpace") {
             CompositorLayer(configuration: ContentStageConfiguration()) { layerRenderer in
-                let renderer = Renderer(layerRenderer)
-                renderer.startRenderLoop()
+                RendererManager.shared.createRenderer(with: layerRenderer)
+
+//                let renderer = Renderer(layerRenderer)
+//                renderer.startRenderLoop()
             }
         }.immersionStyle(selection: .constant(.full), in: .full)
     }

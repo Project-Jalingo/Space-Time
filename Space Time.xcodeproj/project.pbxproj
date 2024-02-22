@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		7F0A63062B77A2A5007DACAA /* globe.png in Resources */ = {isa = PBXBuildFile; fileRef = 7F0A63052B77A2A5007DACAA /* globe.png */; };
 		7F0A63082B77A2B7007DACAA /* stars.jpeg in Resources */ = {isa = PBXBuildFile; fileRef = 7F0A63072B77A2B6007DACAA /* stars.jpeg */; };
-		7F0A630A2B77A2C5007DACAA /* ColorMap.png in Resources */ = {isa = PBXBuildFile; fileRef = 7F0A63092B77A2C5007DACAA /* ColorMap.png */; };
 		7F2502EA2B82F369005397B0 /* Blackhole.metal in Sources */ = {isa = PBXBuildFile; fileRef = 7F2502E92B82F369005397B0 /* Blackhole.metal */; };
 		7F878A392B82A94400956925 /* Planetorium.metal in Sources */ = {isa = PBXBuildFile; fileRef = 7F878A382B82A94400956925 /* Planetorium.metal */; };
 		7F878A3B2B82B8D600956925 /* archive.metal in Sources */ = {isa = PBXBuildFile; fileRef = 7F878A3A2B82B8D600956925 /* archive.metal */; };
@@ -26,7 +25,6 @@
 /* Begin PBXFileReference section */
 		7F0A63052B77A2A5007DACAA /* globe.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = globe.png; sourceTree = "<group>"; };
 		7F0A63072B77A2B6007DACAA /* stars.jpeg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = stars.jpeg; sourceTree = "<group>"; };
-		7F0A63092B77A2C5007DACAA /* ColorMap.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ColorMap.png; sourceTree = "<group>"; };
 		7F2502E92B82F369005397B0 /* Blackhole.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Blackhole.metal; sourceTree = "<group>"; };
 		7F878A382B82A94400956925 /* Planetorium.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Planetorium.metal; sourceTree = "<group>"; };
 		7F878A3A2B82B8D600956925 /* archive.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = archive.metal; sourceTree = "<group>"; };
@@ -85,7 +83,6 @@
 				7F878A3C2B82CD4800956925 /* FlyingEarth.metal */,
 				7F878A3A2B82B8D600956925 /* archive.metal */,
 				7FC497822AE9719800667A87 /* Assets.xcassets */,
-				7F0A63092B77A2C5007DACAA /* ColorMap.png */,
 				7F0A63072B77A2B6007DACAA /* stars.jpeg */,
 				7F0A63052B77A2A5007DACAA /* globe.png */,
 				7FC497842AE9719800667A87 /* Info.plist */,
@@ -171,7 +168,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7F0A630A2B77A2C5007DACAA /* ColorMap.png in Resources */,
 				7F0A63062B77A2A5007DACAA /* globe.png in Resources */,
 				7FC497832AE9719800667A87 /* Assets.xcassets in Resources */,
 				7FC497812AE9719700667A87 /* Preview Assets.xcassets in Resources */,

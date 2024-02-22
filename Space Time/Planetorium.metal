@@ -379,6 +379,50 @@ float3 render2( float3 rayOrigin, float3 rayDirection, texture2d<float> environm
         float specular = clamp(dot(reflection, lightDirection), 0.0, 1.0);
         float totalSpecular = pow(specular, 3.0) + 0.5 * pow(specular, 16.0);
         color += (1.0 - 0.5 * landOrSea) * clamp(1.0 - 2.0 * clouds, 0.0, 1.0) * 0.3 * float3(0.5, 0.4, 0.3) * totalSpecular * diffuse;
+        
+        
+//        if (intersection.planetIndex == 6) {
+//            float distance = sphereSurfaceDistance(rayOrigin, rayDirection, sph);
+//            // Calculate normalized direction from the ray origin to the sphere center
+//            float3 dirToCenter = normalize(sph.xyz - rayOrigin);
+//            // Assuming the equatorial plane is perpendicular to the Y-axis
+//            float equatorialPlaneDistance = length(dirToCenter.xy); // Distance in the equatorial plane
+//            float absDistanceFromEquator = abs(distance) - sph.w; // Absolute distance from the sphere surface
+//            float ringWidth = 5.5 * sph.w; // Adjust ring width as needed
+//
+//            // Calculate ring intensity based on distance from the equator and within a certain width
+//            float ringIntensity = smoothstep(ringWidth, 0.0, abs(absDistanceFromEquator - sph.w * 3.1));
+//
+//            // Define base glow color
+//            float3 baseGlowColor = float3(0.6, 0.7, 1.0);
+//
+//            // Apply ring intensity to the glow
+//            float3 glow = baseGlowColor * ringIntensity;
+//
+//            // Final color adjustment
+//            color += glow * 1.5;
+//        }
+        if (intersection.planetIndex == 6) {
+            // Compute the direction to the intersection point from the planet center
+            float3 dirToIntersection = normalize(intersectionPosition - sph.xyz);
+            // Assuming the ring plane is perpendicular to the Y-axis, calculate the height above/below this plane
+            float heightAboveRingPlane = dot(dirToIntersection, float3(0, 1, 0)) * length(intersectionPosition - sph.xyz);
+            // Determine if the intersection point is within the ring's plane (with some thickness)
+            float ringPlaneThickness = 0.95 * sph.w; // Adjust for the thickness of the rings
+            bool withinRingPlane = abs(heightAboveRingPlane) < ringPlaneThickness;
+            
+            // Additionally, check if we're within the radial bounds of the rings
+            float radialDistanceFromPlanetCenter = length(intersectionPosition.xy - sph.xy);
+            bool withinRadialBounds = radialDistanceFromPlanetCenter > sph.w && radialDistanceFromPlanetCenter < sph.w * 1.5; // Example bounds
+            
+            if (withinRingPlane && withinRadialBounds) {
+                // Define the ring's glow effect
+                float3 ringGlowColor = float3(0.6, 0.7, 1.0);
+                float ringGlowIntensity = 1.0 - smoothstep(sph.w, sph.w * 1.5, radialDistanceFromPlanetCenter); // Falloff based on distance
+                color += ringGlowColor * ringGlowIntensity * 0.5; // Adjust intensity as needed
+            }
+        }
+
     }
 
     float maximumDistance = 20.0;
@@ -402,12 +446,15 @@ float3 render2( float3 rayOrigin, float3 rayDirection, texture2d<float> environm
         
         // Calculate distance from the position to the planet's surface
         float distanceToPlanetSurface = max(length(position - sph.xyz) - sph.x, 0.0);
-
+        float influenceFactor = (length(rayOrigin - sph.xyz));
+        float2 patternOffset = float2(influenceFactor * 0.1);
+        
+        
         // Apply distortion based on distance to planet surface
         float distortionFactor = 1.0 / (1.0 + distanceToPlanetSurface * 0.2); // Adjust 0.1 to control the distortion strength
         
         // Distort the wireframe pattern using the distortion factor
-        float2 sinPattern = sin(distortionFactor * 2.0 * 6.2831 * position.xz);
+        float2 sinPattern = sin(distortionFactor * 2.0 * 6.2831 * (position.xz + patternOffset));
 
         //float2 sinPattern = sin(2.0 * 6.2831 * sph.xz);
         
@@ -416,25 +463,30 @@ float3 render2( float3 rayOrigin, float3 rayDirection, texture2d<float> environm
         wireframeColor += 1.0 * exp(-12.0 * abs(sinPattern.y));
         wireframeColor += 0.5 * exp(-4.0 * abs(sinPattern.x));
         wireframeColor += 0.5 * exp(-4.0 * abs(sinPattern.y));
-        wireframeColor *= 0.2 + 1.0 * sphereSoftShadow(sph.xyz, lightDirection, sph, 4.0);
+        wireframeColor *= 0.2 + 1.0 * sphereSoftShadow(position, lightDirection, sph, 4.0);
         // The visibility effect is adjusted by effectiveDistance, not traveledDistance
         color += wireframeColor * 0.5 * exp(-0.05 * effectiveDistance * effectiveDistance);
     }
     
     // Outer glow effect for objects
 //    if (dot(rayDirection, sph.xyz - rayOrigin) > 0.0) {
-        float distance = sphereSurfaceDistance(rayOrigin, rayDirection, sph);
-        float3 glow = float3(0.0);
-        glow += float3(0.6, 0.7, 1.0) * 0.3 * exp(-2.0 * abs(distance)) * step(0.0, distance);
-        glow += 0.6 * float3(0.6, 0.7, 1.0) * 0.3 * exp(-8.0 * abs(distance));
-        glow += 0.6 * float3(0.8, 0.9, 1.0) * 0.4 * exp(-100.0 * abs(distance));
-        color += glow * 1.5;
- //   }
+//        float distance = sphereSurfaceDistance(rayOrigin, rayDirection, sph);
+//        float3 glow = float3(0.0);
+//        glow += float3(0.6, 0.7, 1.0) * 0.3 * exp(-2.0 * abs(distance)) * step(0.0, distance);
+//        glow += 0.6 * float3(0.6, 0.7, 1.0) * 0.3 * exp(-8.0 * abs(distance));
+//        glow += 0.6 * float3(0.8, 0.9, 1.0) * 0.4 * exp(-100.0 * abs(distance));
+//        color += glow * 1.5;
+//    }
+
     
     // Apply time-based fading to the color
     color *= smoothstep(0.0, 6.0, time);
 
     return color;
+    
+//    if (intersection.distance > 0.0 && intersection.planetIndex == 1){
+//        return float3(1,0,0);
+//    }
 }
 
 
@@ -663,7 +715,7 @@ struct VertexOut {
 
 
 
-vertex VertexOut vertexShader(const VertexIn in [[stage_in]],
+vertex VertexOut vertexShaderAll(const VertexIn in [[stage_in]],
                               constant UniformsArray &uniformsArray [[buffer(1)]]){
 
     VertexOut out;
@@ -700,7 +752,7 @@ vertex VertexOut vertexShader(const VertexIn in [[stage_in]],
 
 
 
-fragment float4 fragmentShader(VertexOut vertexOutput [[stage_in]],
+fragment float4 fragmentShaderAll(VertexOut vertexOutput [[stage_in]],
                                constant UniformsArray &shaderUniformsArray [[buffer(0)]],
                                texture2d<float> stars [[texture(2)]],
                                texture2d<float> map [[texture(1)]]) {
