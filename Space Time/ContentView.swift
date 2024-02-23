@@ -98,7 +98,7 @@ struct ContentView: View {
 
     @State private var selectedDisplayMode: DisplayMode = .all // Default selection
 
-    let displayModes = ["All planets", "Earth only"]
+    let displayModes = ["Planetary focus", "Earth focus"]
 
     @Environment(\.openImmersiveSpace) var openImmersiveSpace
     @Environment(\.dismissImmersiveSpace) var dismissImmersiveSpace
@@ -108,10 +108,10 @@ struct ContentView: View {
             Model3D(named: "Scene", bundle: realityKitContentBundle)
                 .padding(.bottom, 50)
 
-            Text("Hello, from Space!")
+            Text("Welcome! ")
 
             Toggle(isOn: $showImmersiveSpace) {
-                Text(immersiveSpaceIsShown ? "Leave Immersive" : "Enter Cosmos")
+                Text(immersiveSpaceIsShown ? "Exit" : "Explore the cosmos")
             }
             .toggleStyle(.button)
             .padding(.top, 50)

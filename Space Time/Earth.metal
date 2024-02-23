@@ -379,7 +379,7 @@ fragment float4 fragmentShaderEarth(VertexOut_Earth vertexOutput [[stage_in]],
     float4 outputColor = float4(1,0,0,1);
     float cameraPositionX = uniforms.viewMatrix.columns[0][0];
     float zoomFactor = 1.0 + smoothstep(5.0, 15.0, abs(vertexOutput.time - 48.0));
-    float angleOffset = 3.0 + 0.05 * vertexOutput.time + 6.0 * cameraPositionX / 2732;
+    float angleOffset = 3.0 + 0.05 * vertexOutput.time + 6.0 * cameraPositionX / uniforms.viewportWidth;
     float3 rayOrigin = zoomFactor * float3(2.0 * cos(angleOffset), 1.0, 2.0 * sin(angleOffset));
     float3 rayTarget = vertexOutput.RayDir;//float3(1.0, 0.0, 0.0);
     float3x3 cameraMatrix = setCamera_Earth(rayOrigin, rayTarget, 0.35);

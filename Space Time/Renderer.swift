@@ -18,8 +18,8 @@ enum RendererError: Error {
 
 enum DisplayMode: String, CaseIterable, Identifiable {
 
-    case all = "All planets"
-    case earth = "Earth only"
+    case all = "Planetary focus"
+    case earth = "Earth focus"
     
     var id: String { self.rawValue }
 
@@ -38,7 +38,7 @@ class Renderer: ObservableObject  {
     let commandQueue: MTLCommandQueue
     var dynamicUniformBuffer: MTLBuffer
     //var displayMode: DisplayMode = .all
-    @Published var displayMode: DisplayMode = .all
+    @Published var displayMode: DisplayMode = .earth
 
     var pipelineState: MTLRenderPipelineState!
     var pipelineStateAll: MTLRenderPipelineState!
@@ -110,9 +110,9 @@ class Renderer: ObservableObject  {
 //                                                                       mtlVertexDescriptor: mtlVertexDescriptor,
 //                                                                       vertexFunctionName: "String",
 //                                                                       fragmentFunctionName: "String")
-        } catch {
-            fatalError("Unable to compile render pipeline state.  Error info: \(error)")
-        }
+        } //catch {
+         //   fatalError("Unable to compile render pipeline state.  Error info: \(error)")
+        //}
     }
     
     func startRenderLoop() {
@@ -335,7 +335,7 @@ class Renderer: ObservableObject  {
         let currentTime = CACurrentMediaTime()
         let elapsedTime = Float(currentTime - self.startTime)
         
-        let rotationAxis = SIMD3<Float>(1, 1, 0)
+        //let rotationAxis = SIMD3<Float>(1, 1, 0)
 
        // if let drawable = layerRenderer.queryNextFrame() {
         let viewportWidth = drawable.colorTextures.first?.width ?? 0
@@ -343,8 +343,8 @@ class Renderer: ObservableObject  {
             // Now you have a viewport size you can pass to your shaders
        // }
         
-        let modelRotationMatrix = matrix4x4_rotation(radians: rotation, axis: rotationAxis)
-        let modelTranslationMatrix = matrix4x4_translation(0.0, 0.0, -1.0)
+        //let modelRotationMatrix = matrix4x4_rotation(radians: rotation, axis: rotationAxis)
+        //let modelTranslationMatrix = matrix4x4_translation(0.0, 0.0, -1.0)
         //let modelMatrix = modelTranslationMatrix * modelRotationMatrix
         
         // Use identity matrices for simplification
@@ -370,7 +370,13 @@ class Renderer: ObservableObject  {
             let translation = viewMatrix.inverse.columns.3
             let cameraPosition = SIMD3<Float>(translation.x, translation.y, translation.z)
 //            * modelMatrix
-            return Uniforms(projectionMatrix: .init(projection), modelMatrix: modelMatrix , viewMatrix: viewMatrix , cameraPosition: cameraPosition, time: elapsedTime)
+            return Uniforms(projectionMatrix: .init(projection), 
+                            modelMatrix: modelMatrix ,
+                            viewMatrix: viewMatrix ,
+                            cameraPosition: cameraPosition,
+                            time: elapsedTime,
+                            viewportWidth: Int32(viewportWidth),
+                            viewportHeight: Int32(viewportHeight))
         }
         
             self.uniforms[0].uniforms.0 = uniforms(forViewIndex: 0)

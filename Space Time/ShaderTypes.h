@@ -52,6 +52,8 @@ typedef struct
     matrix_float4x4 viewMatrix;  // Model-view matrix for model transformation and camera view.
     simd_float3 cameraPosition;
     float time;
+    int viewportWidth;
+    int viewportHeight;
 } Uniforms;
 
 // Array of Uniforms structures to support multiple transformation matrices.
