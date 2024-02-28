@@ -69,9 +69,7 @@ float3 sphNormal_Earth(  float3 pos,  float4 sph )
 
 float3 fancyCube2(texture2d<float> texture, sampler sam,  float3 direction,  float s,  float b )
 {
-    
-        
-    //calculate the sampling coordinates based on direction
+     //calculate the sampling coordinates based on direction
     float2 coordX = 0.5 + s * direction.yz/direction.x;
     float2 coordY = 0.5 + s * direction.zx/direction.y;
     float2 coordZ = 0.5 + s * direction.xy/direction.z;
@@ -89,7 +87,7 @@ float3 fancyCube2(texture2d<float> texture, sampler sam,  float3 direction,  flo
 }
 
 float3 fancyCube_Earth(texture2d<float> texture, sampler sam, float3 direction, float s, float b) {
-    // Calculate the sampling coordinates based on direction and ensure they tile by wrapping with fract
+    //Calculate the sampling coordinates based on direction and ensure they tile by wrapping with fract
     float2 coordX = fract(0.5 + s * direction.yz / direction.x);
     float2 coordY = fract(0.5 + s * direction.zx / direction.y);
     float2 coordZ = fract(0.5 + s * direction.xy / direction.z);
@@ -103,6 +101,8 @@ float3 fancyCube_Earth(texture2d<float> texture, sampler sam, float3 direction, 
     float3 n = direction * direction;
     float3 resultColor = (colx * n.x + coly * n.y + colz * n.z) / (n.x + n.y + n.z);
     return resultColor;
+    
+
 }
 
 
@@ -216,7 +216,7 @@ float3 render_Earth( float3 rayOrigin, float3 rayDirection, texture2d<float> env
     // If there is an intersection, calculate the color at the intersection point
     if (intersectionDistance > 0.0) {
         // Base material color
-        float3 materialColor = float3(0.18);
+        float3 materialColor = float3(1,0,0);//(0.18);
         // Calculate the intersection position
         float3 intersectionPosition = rayOrigin + intersectionDistance * rayDirection;
         // Calculate normal at the intersection point
@@ -282,8 +282,8 @@ float3 render_Earth( float3 rayOrigin, float3 rayDirection, texture2d<float> env
     if (intersectionDistance < maximumDistance) {
         // Calculate position and wireframe effects if the raymarch finds an intersection
         float3 position = rayOrigin + intersectionDistance * rayDirection;
-        float2 sinPattern = sin(2.0 * 6.2831 * position.xz);
-        float3 wireframeColor = float3(0.0);
+        float2 sinPattern = sin(2.0 * 16.2831 * position.xz);
+        float3 wireframeColor = float3(1.0);
         wireframeColor += 1.0 * exp(-12.0 * abs(sinPattern.x));
         wireframeColor += 1.0 * exp(-12.0 * abs(sinPattern.y));
         wireframeColor += 0.5 * exp(-4.0 * abs(sinPattern.x));
@@ -328,56 +328,108 @@ struct VertexOut_Earth {
     float3 modelNormal;
     float3 RayOri;
     float3 RayDir;
+    float3 texCoords;
 };
 
 
 
-vertex VertexOut_Earth vertexShaderEarth(const VertexIn_Earth in [[stage_in]],
-                              constant UniformsArray &uniformsArray [[buffer(1)]]){
+//vertex VertexOut_Earth vertexShaderEarth(const VertexIn_Earth in [[stage_in]],
+//                                         uint vertexID [[vertex_id]],
+//                              constant UniformsArray &uniformsArray [[buffer(1)]]){
+//
+//    VertexOut_Earth out;
+//    
+//    
+//    // access the first set of uniforms
+//    constant Uniforms& uniforms = uniformsArray.uniforms[0];
+//    // Construct a rotation-only matrix from the view matrix by removing translation components
+//    float4x4 rotationOnlyViewMatrix = uniforms.viewMatrix;
+//    rotationOnlyViewMatrix.columns[3] = float4(0, 0, 0, 1); // Remove translation
+//
+//    // Apply projection and rotation-only view matrix to the vertex positions
+//    out.position = uniforms.projectionMatrix * uniforms.viewMatrix * uniforms.modelMatrix * float4(in.position, 1.0);
+//
+//    out.RayOri = uniforms.cameraPosition;
+//    
+//    // Calculate the world position of the vertex by applying the model-view matrix to the vertex position.
+//    // This assumes that the model-view matrix transforms vertices from model space to view space.
+//    // To get the position in world space, you would typically use the model matrix alone, but
+//    // since we're directly using the modelViewMatrix, it implies the cameraPosition is considering the view transformation.
+//
+//    float4 worldPosition = (uniforms.modelMatrix) * float4(in.position, 1.0f);
+//    
+//    // The ray direction is from the camera to the vertex in world space.
+//    // However, since worldPosition is in view space after applying modelViewMatrix,
+//    // we don't perform a subtraction between worldPosition and cameraPosition here.
+//    // If you need the direction vector from the camera to the vertex in world space, you will have to adjust this calculation
+//    // based on how you've setup your transformations and what space you're working in.
+//    
+//    // For a typical scenario where you might want to calculate a view direction vector in view space,
+//    // you could simply use the normalized vertex position in view space (ignoring translation).
+//    
+//    out.RayDir = normalize(worldPosition.xyz - out.RayOri);
+//    out.time = uniforms.time;
+//    return out;
+//}
 
+vertex VertexOut_Earth vertexShaderEarth(const VertexIn_Earth in [[stage_in]],
+                                         uint vertexID [[vertex_id]],
+                                         constant UniformsArray &uniformsArray [[buffer(1)]]){
+    
     VertexOut_Earth out;
-    
-    
     // access the first set of uniforms
     constant Uniforms& uniforms = uniformsArray.uniforms[0];
-    
+    // Pass through position
+    float4 transformedPosition = uniforms.projectionMatrix * uniforms.viewMatrix * uniforms.modelMatrix * float4(in.position, 1.0);
 
-    
-    out.position = uniforms.projectionMatrix  * uniforms.viewMatrix * uniforms.modelMatrix * float4(in.position, 1.0f);
+    // Conditional logic to adjust vertex positions based on their ID
+    out.position = transformedPosition;
+    out.texCoords = in.position; // Directly use vertex positions as texture coordinates
     out.RayOri = uniforms.cameraPosition;
-    
-    // Calculate the world position of the vertex by applying the model-view matrix to the vertex position.
-    // This assumes that the model-view matrix transforms vertices from model space to view space.
-    // To get the position in world space, you would typically use the model matrix alone, but
-    // since we're directly using the modelViewMatrix, it implies the cameraPosition is considering the view transformation.
+        // Define fullscreen quad vertices
+        float2 positions[6] = {
 
+            float2(-1.0, 1.0),
+            float2(-1.0, -1.0),
+            float2(1.0, -1.0),
+            
+            float2(-1.0, 1.0),
+            float2(1.0, -1.0),
+            float2(1.0, 1.0),
+        };
+    
+        // Output clip-space position
+        out.position = float4(positions[vertexID], 0.1, 1.0);
+    // Calculate the world position of the vertex by applying the model-view matrix to the vertex position.
+        // This assumes that the model-view matrix transforms vertices from model space to view space.
+        // To get the position in world space, you would typically use the model matrix alone, but
+        // since we're directly using the modelViewMatrix, it implies the cameraPosition is considering the view transformation.
+    
     float4 worldPosition = (uniforms.modelMatrix) * float4(in.position, 1.0f);
     
-    // The ray direction is from the camera to the vertex in world space.
-    // However, since worldPosition is in view space after applying modelViewMatrix,
-    // we don't perform a subtraction between worldPosition and cameraPosition here.
-    // If you need the direction vector from the camera to the vertex in world space, you will have to adjust this calculation
-    // based on how you've setup your transformations and what space you're working in.
+        // The ray direction is from the camera to the vertex in world space.
+        // However, since worldPosition is in view space after applying modelViewMatrix,
+        // we don't perform a subtraction between worldPosition and cameraPosition here.
+        // If you need the direction vector from the camera to the vertex in world space, you will have to adjust this calculation
+        // based on how you've setup your transformations and what space you're working in.
     
-    // For a typical scenario where you might want to calculate a view direction vector in view space,
-    // you could simply use the normalized vertex position in view space (ignoring translation).
+        // For a typical scenario where you might want to calculate a view direction vector in view space,
+        // you could simply use the normalized vertex position in view space (ignoring translation).
     
     out.RayDir = normalize(worldPosition.xyz - out.RayOri);
     out.time = uniforms.time;
     return out;
 }
 
-
-
 fragment float4 fragmentShaderEarth(VertexOut_Earth vertexOutput [[stage_in]],
                                constant UniformsArray &shaderUniformsArray [[buffer(0)]],
-                               texture2d<float> stars [[texture(2)]],
+                                    texture2d<float> stars [[texture(2)]],
                                texture2d<float> map [[texture(1)]]) {
     
     // Access the first set of uniforms
     constant Uniforms& uniforms = shaderUniformsArray.uniforms[0];
     float4 outputColor = float4(1,0,0,1);
-    float cameraPositionX = uniforms.viewMatrix.columns[0][0];
+    float cameraPositionX = vertexOutput.RayOri.x;//uniforms.viewMatrix.columns[0][0];
     float zoomFactor = 1.0 + smoothstep(5.0, 15.0, abs(vertexOutput.time - 48.0));
     float angleOffset = 3.0 + 0.05 * vertexOutput.time + 6.0 * cameraPositionX / uniforms.viewportWidth;
     float3 rayOrigin = zoomFactor * float3(2.0 * cos(angleOffset), 1.0, 2.0 * sin(angleOffset));
@@ -388,15 +440,106 @@ fragment float4 fragmentShaderEarth(VertexOut_Earth vertexOutput [[stage_in]],
     // Calculate ray direction for this fragment
     float3 rayDir = normalize(cameraMatrix * vertexOutput.RayDir);
     
+
     
     //outputColor.xyz = render(vertexOutput.RayOri, vertexOutput.RayDir, stars, map, samplerState, vertexOutput.time);
     outputColor.xyz = render_Earth(rayOrigin , rayDir, map, stars, samplerState, vertexOutput.time);
     
     // Apply a vignette effect based on fragment position
     //float2 q = vertexOutput.position.xy / 2732;
-    //outputColor.xyz *= 0.2 + 0.8 * pow(16.0 * q.x * q.y * (1.0 - q.x) * (1.0 - q.y), 0.1);
-    
+    //if (outputColor.x < 0.0001 & outputColor.y < 0.0001 & outputColor.z < 0.0001) outputColor.xyz = float3 (1.0,0,0);
     return outputColor;
 }
 
+//fragment float4 fragmentShaderEarth(VertexOut_Earth vertexOutput [[stage_in]],
+//                               constant UniformsArray &shaderUniformsArray [[buffer(0)]],
+//                               texture2d<float> stars [[texture(2)]],
+//                               texture2d<float> map [[texture(1)]]) {
+//    
+//}
 
+//float spacetimeCurve(float3 position){
+//    float radius = length(position);
+//    float curvature = 1.0/(1.0 + exp(radius - 1.0));
+//    return curvature;
+//}
+//
+//
+//vertex VertexOut_Earth vertexShaderEarth(const VertexIn_Earth in [[stage_in]],
+//                                         uint vertexID [[vertex_id]],
+//                                         constant UniformsArray &uniformsArray [[buffer(1)]]){
+//    VertexOut_Earth out;
+//
+//    // Access the first set of uniforms
+//     constant Uniforms& uniforms = uniformsArray.uniforms[0];
+//    
+//// Define fullscreen quad vertices
+//float2 positions[6] = {
+//
+//    float2(-1.0, 1.0),
+//    float2(-1.0, -1.0),
+//    float2(1.0, -1.0),
+//    
+//    float2(-1.0, 1.0),
+//    float2(1.0, -1.0),
+//    float2(1.0, 1.0),
+//};
+//
+//// Output clip-space position
+//out.position = float4(positions[vertexID], 0.1, 1.0);
+//    out.RayOri = uniforms.cameraPosition;    // Calculate and pass texture coordinates if needed
+//    out.texCoords = float3(positions[vertexID] * 0.5 + 0.5,1.0);
+//    out.time = uniforms.time;
+//    return out;
+//}
+
+
+//fragment float4 fragmentShaderEarth(VertexOut_Earth in [[stage_in]],
+//                                    constant UniformsArray &shaderUniformsArray [[buffer(0)]],
+//                                    texture2d<float> stars [[texture(2)]],
+//                                    texture2d<float> map [[texture(1)]]){
+//    
+//    //
+//    //        // The ray direction is from the camera to the vertex in world space.
+//    //        // However, since worldPosition is in view space after applying modelViewMatrix,
+//    //        // we don't perform a subtraction between worldPosition and cameraPosition here.
+//    //        // If you need the direction vector from the camera to the vertex in world space, you will have to adjust this calculation
+//    //        // based on how you've setup your transformations and what space you're working in.
+//    //
+//    //        // For a typical scenario where you might want to calculate a view direction vector in view space,
+//    //        // you could simply use the normalized vertex position in view space (ignoring translation).
+//    //
+//    //    out.RayDir = normalize(worldPosition.xyz - out.RayOri);
+//    
+//    // Access the first set of uniforms
+//     constant Uniforms& uniforms = shaderUniformsArray.uniforms[0];
+//    
+//    float4 worldPosition = (uniforms.modelMatrix) * float4(in.position.xyz, 1.0f);
+//    in.RayDir = normalize(worldPosition.xyz - in.RayOri);
+//
+//   float4 outputColor = float4(1,0,0,1);
+//    float cameraPositionX = in.RayOri.x;//uniforms.viewMatrix.columns[0][0];
+//    float zoomFactor = 1.0 + smoothstep(5.0, 15.0, abs(in.time - 48.0));
+//    float angleOffset = 3.0 + 0.05 * in.time + 6.0 * cameraPositionX / uniforms.viewportWidth;
+//    float3 rayOrigin = zoomFactor * float3(2.0 * cos(angleOffset), 1.0, 2.0 * sin(angleOffset));
+//    float3 rayTarget = float3(1.0, 0.0, 0.0);
+//    float3x3 cameraMatrix = setCamera_Earth(rayOrigin, rayTarget, 0.35);
+//    sampler samplerState;
+//   
+//    // Calculate ray direction for this fragment
+//    float3 rayDir = normalize(cameraMatrix * in.RayDir);
+//    
+//    //outputColor.xyz = render(vertexOutput.RayOri, vertexOutput.RayDir, stars, map, samplerState, vertexOutput.time);
+//    outputColor.xyz = render_Earth(rayOrigin , rayDir, map, stars, samplerState, in.time);
+//    
+//    // Apply a vignette effect based on fragment position
+//    //float2 q = vertexOutput.position.xy / 2732;
+//    //if (outputColor.x < 0.0001 & outputColor.y < 0.0001 & outputColor.z < 0.0001) outputColor.xyz = float3 (1.0,0,0);
+//    return outputColor;
+////    // Calculate view direction for the current fragment
+////    float3 viewDirection = normalize(cameraRotation * (in.position.xyz * 2.0 - 1.0));
+////    // Use your environmental effect functions
+////    float3 backgroundColor = background_Earth(viewDirection, ...); // Fill in other parameters as needed
+////
+////    return float4(backgroundColor, 1.0);
+//}

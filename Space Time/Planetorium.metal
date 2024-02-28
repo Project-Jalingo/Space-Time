@@ -29,6 +29,36 @@ float sdSphere(float3 position, float3 center, float radius) {
     return length(position - center) - radius;
 }
 
+float sdSaturnSphere(float3 position, float3 center, float3 radius) {
+    
+    float ko = length(position-center/radius);
+    float k1 = length(position-center/(radius*radius));
+    return ko*(ko-1.0)/k1;
+}
+
+float sdSphereBig(float3 position, float radius) {
+    return length(position) - radius;
+}
+
+float sdSphereSmall(float3 position, float radius) {
+    return  radius - length(position);
+}
+
+float sdf_flatDisk(float3 position, float3 center, float bigR, float smallR){
+    float outerDisk = sdSphereBig(position, bigR);
+    float innerDisk = sdSphereSmall(position, smallR);
+    return max(outerDisk,-innerDisk);
+}
+
+
+float sdSaturn(float3 position,float3 center, float3 planetRadius, float2 ringRadius){
+    float distancePlanet = sdSaturnSphere(position, center, planetRadius);
+    float3 flatDiskPosition = position;
+    float distanceRings = sdf_flatDisk(position, center, ringRadius.x, ringRadius.y);
+    float combinedDistance = min(distancePlanet,distanceRings);
+    return combinedDistance;
+    
+}
 
 typedef struct {
     float distance;
@@ -419,7 +449,7 @@ float3 render2( float3 rayOrigin, float3 rayDirection, texture2d<float> environm
                 // Define the ring's glow effect
                 float3 ringGlowColor = float3(0.6, 0.7, 1.0);
                 float ringGlowIntensity = 1.0 - smoothstep(sph.w, sph.w * 1.5, radialDistanceFromPlanetCenter); // Falloff based on distance
-                color += ringGlowColor * ringGlowIntensity * 0.5; // Adjust intensity as needed
+                color += ringGlowColor * ringGlowIntensity * 10.5; // Adjust intensity as needed
             }
         }
 
@@ -454,7 +484,7 @@ float3 render2( float3 rayOrigin, float3 rayDirection, texture2d<float> environm
         float distortionFactor = 1.0 / (1.0 + distanceToPlanetSurface * 0.2); // Adjust 0.1 to control the distortion strength
         
         // Distort the wireframe pattern using the distortion factor
-        float2 sinPattern = sin(distortionFactor * 2.0 * 6.2831 * (position.xz + patternOffset));
+        float2 sinPattern = sin(distortionFactor * 2.0 * 16.2831 * (position.xz + patternOffset));
 
         //float2 sinPattern = sin(2.0 * 6.2831 * sph.xz);
         
@@ -465,7 +495,24 @@ float3 render2( float3 rayOrigin, float3 rayDirection, texture2d<float> environm
         wireframeColor += 0.5 * exp(-4.0 * abs(sinPattern.y));
         wireframeColor *= 0.2 + 1.0 * sphereSoftShadow(position, lightDirection, sph, 4.0);
         // The visibility effect is adjusted by effectiveDistance, not traveledDistance
-        color += wireframeColor * 0.5 * exp(-0.05 * effectiveDistance * effectiveDistance);
+        //color += wireframeColor * 0.5 * exp(-0.05 * effectiveDistance * effectiveDistance)*.81;
+        
+ /* testing*/
+        // Distort the wireframe pattern using the distortion factor
+        float2 sinPattern2 = sin(distortionFactor * 2.0 * 16.2831 * (position.xy + patternOffset));
+        float3 wireframeColor2 = float3(0.0);
+        wireframeColor2 += 1.0 * exp(-12.0 * abs(sinPattern2.x));
+        //wireframeColor2 += 1.0 * exp(-12.0 * abs(sinPattern.y));
+        //wireframeColor2 += 0.5 * exp(-4.0 * abs(sinPattern.x));
+        //wireframeColor2 += 0.5 * exp(-4.0 * abs(sinPattern.y));
+        //wireframeColor2 *= 0.2 + 1.0 * sphereSoftShadow(position, lightDirection, sph, 4.0);
+        // The visibility effect is adjusted by effectiveDistance, not traveledDistance
+        color += wireframeColor2 * 0.5 * exp(-0.05 * effectiveDistance * effectiveDistance)*.81;
+        
+/* testing*/
+
+        
+        
     }
     
     // Outer glow effect for objects
@@ -716,6 +763,7 @@ struct VertexOut {
 
 
 vertex VertexOut vertexShaderAll(const VertexIn in [[stage_in]],
+                                 uint vertexID [[vertex_id]],
                               constant UniformsArray &uniformsArray [[buffer(1)]]){
 
     VertexOut out;
@@ -727,6 +775,25 @@ vertex VertexOut vertexShaderAll(const VertexIn in [[stage_in]],
 
 
     out.position = uniforms.projectionMatrix  * uniforms.viewMatrix * uniforms.modelMatrix * float4(in.position, 1.0f);
+    
+    
+    // Define fullscreen quad vertices
+    float2 positions[6] = {
+
+        float2(-1.0, 1.0),
+        float2(-1.0, -1.0),
+        float2(1.0, -1.0),
+        
+        float2(-1.0, 1.0),
+        float2(1.0, -1.0),
+        float2(1.0, 1.0),
+    };
+
+    // Output clip-space position
+    out.position = float4(positions[vertexID], 0.1, 1.0);
+    
+    
+    
     out.RayOri = uniforms.cameraPosition;
 
     // Calculate the world position of the vertex by applying the model-view matrix to the vertex position.
@@ -784,6 +851,8 @@ fragment float4 fragmentShaderAll(VertexOut vertexOutput [[stage_in]],
     outputColor.xyz *= 0.2 + 0.8 * pow(16.0 * q.x * q.y * (1.0 - q.x) * (1.0 - q.y), 0.1);
 
     return outputColor;
+    //return float4(1,0,0,1);
 }
+
 
 

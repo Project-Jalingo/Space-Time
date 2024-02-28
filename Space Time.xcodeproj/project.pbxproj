@@ -13,6 +13,7 @@
 		7F878A392B82A94400956925 /* Planetorium.metal in Sources */ = {isa = PBXBuildFile; fileRef = 7F878A382B82A94400956925 /* Planetorium.metal */; };
 		7F878A3B2B82B8D600956925 /* archive.metal in Sources */ = {isa = PBXBuildFile; fileRef = 7F878A3A2B82B8D600956925 /* archive.metal */; };
 		7F878A3D2B82CD4800956925 /* FlyingEarth.metal in Sources */ = {isa = PBXBuildFile; fileRef = 7F878A3C2B82CD4800956925 /* FlyingEarth.metal */; };
+		7FB243B82B8DC63C00E88BFB /* slow.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 7FB243B72B8DC63C00E88BFB /* slow.mp3 */; };
 		7FC497752AE9719700667A87 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 7FC497742AE9719700667A87 /* RealityKitContent */; };
 		7FC497772AE9719700667A87 /* Space_TimeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC497762AE9719700667A87 /* Space_TimeApp.swift */; };
 		7FC497792AE9719700667A87 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC497782AE9719700667A87 /* ContentView.swift */; };
@@ -29,6 +30,7 @@
 		7F878A382B82A94400956925 /* Planetorium.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Planetorium.metal; sourceTree = "<group>"; };
 		7F878A3A2B82B8D600956925 /* archive.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = archive.metal; sourceTree = "<group>"; };
 		7F878A3C2B82CD4800956925 /* FlyingEarth.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = FlyingEarth.metal; sourceTree = "<group>"; };
+		7FB243B72B8DC63C00E88BFB /* slow.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; name = slow.mp3; path = ../../../../Users/user1/Desktop/slow.mp3; sourceTree = "<group>"; };
 		7FC4976F2AE9719700667A87 /* Space Time.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Space Time.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		7FC497732AE9719700667A87 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 		7FC497762AE9719700667A87 /* Space_TimeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Space_TimeApp.swift; sourceTree = "<group>"; };
@@ -84,6 +86,7 @@
 				7F878A3A2B82B8D600956925 /* archive.metal */,
 				7FC497822AE9719800667A87 /* Assets.xcassets */,
 				7F0A63072B77A2B6007DACAA /* stars.jpeg */,
+				7FB243B72B8DC63C00E88BFB /* slow.mp3 */,
 				7F0A63052B77A2A5007DACAA /* globe.png */,
 				7FC497842AE9719800667A87 /* Info.plist */,
 				7FC4977F2AE9719700667A87 /* Preview Content */,
@@ -169,6 +172,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7F0A63062B77A2A5007DACAA /* globe.png in Resources */,
+				7FB243B82B8DC63C00E88BFB /* slow.mp3 in Resources */,
 				7FC497832AE9719800667A87 /* Assets.xcassets in Resources */,
 				7FC497812AE9719700667A87 /* Preview Assets.xcassets in Resources */,
 				7F0A63082B77A2B7007DACAA /* stars.jpeg in Resources */,

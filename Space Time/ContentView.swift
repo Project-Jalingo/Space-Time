@@ -1,9 +1,6 @@
-//
 //  ContentView.swift
 //  Space Time
-//
-//  Created by User1 on 10/25/23.
-//
+//  Created by Sanmi Adenaiye on 10/25/23.
 
 import SwiftUI
 import RealityKit
@@ -18,7 +15,7 @@ class MusicPlayerManager {
     var player: AVAudioPlayer?
 
     func startPlaying() {
-        guard let url = Bundle.main.url(forResource: "SoftMusic", withExtension: "mp3") else { return }
+        guard let url = Bundle.main.url(forResource: "slow", withExtension: "mp3") else { return }
         do {
             player = try AVAudioPlayer(contentsOf: url)
             player?.numberOfLoops = -1 // Loop indefinitely

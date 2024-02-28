@@ -357,6 +357,7 @@ class Renderer: ObservableObject  {
         func uniforms(forViewIndex viewIndex: Int) -> Uniforms {
             let view = drawable.views[viewIndex]
             let viewMatrix = (simdDeviceAnchor * view.transform).inverse
+            
             let projection = ProjectiveTransform3D(leftTangent: Double(view.tangents[0]),
                                                    rightTangent: Double(view.tangents[1]),
                                                    topTangent: Double(view.tangents[2]),
@@ -364,6 +365,13 @@ class Renderer: ObservableObject  {
                                                    nearZ: Double(drawable.depthRange.y),
                                                    farZ: Double(drawable.depthRange.x),
                                                    reverseZ: true)
+            
+//            let projection = makeInfinityProjectivePerspectiveMatrix(near: (drawable.depthRange.y),
+//                                                                             leftTangent: (view.tangents[0]),
+//                                                                             rightTangent: (view.tangents[1]),
+//                                                                             topTangent: (view.tangents[2]),
+//                                                                             bottomTangent: (view.tangents[3]))
+            
             
             
             // Extract camera position from the translation components of the matrix
@@ -386,6 +394,32 @@ class Renderer: ObservableObject  {
         
         //rotation += 0.01
     }
+    
+    func makeInfinityProjectivePerspectiveMatrix(near: Float, leftTangent: Float, rightTangent: Float, topTangent: Float, bottomTangent: Float) -> simd_float4x4 {
+        let near2 = 2.0 * near
+        let right = near * rightTangent
+        let left = -near * leftTangent
+        let top = near * topTangent
+        let bottom = -near * bottomTangent
+
+        // These calculations are based on the standard perspective matrix creation,
+        // but with modifications for the infinite far plane.
+        let m00 = near2 / (right - left)
+        let m11 = near2 / (top - bottom)
+
+        // These elements set up the infinite perspective view frustum.
+        let m22: Float = -1.0
+        let m32: Float = -1.0
+        let m23 = -near2
+
+        return simd_matrix(
+            simd_make_float4(m00, 0.0, 0.0, 0.0),
+            simd_make_float4(0.0, m11, 0.0, 0.0),
+            simd_make_float4(0.0, 0.0, m22, m23),
+            simd_make_float4(0.0, 0.0, m32, 0.0)
+        )
+    }
+
 
     
     func initializePipelineStates() {
