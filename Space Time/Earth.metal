@@ -275,7 +275,7 @@ float3 render_Earth( float3 rayOrigin, float3 rayDirection, texture2d<float> env
         color += (1.0 - 0.5 * landOrSea) * clamp(1.0 - 2.0 * clouds, 0.0, 1.0) * 0.3 * float3(0.5, 0.4, 0.3) * totalSpecular * diffuse;
     }
     
-    // Raymarch additional elements if needed
+    //
     float maximumDistance = 20.0;
     if (intersectionDistance > 0.0) maximumDistance = intersectionDistance;
     intersectionDistance = marchRayThroughSpace_Earth(rayOrigin, rayDirection, maximumDistance);
@@ -294,7 +294,7 @@ float3 render_Earth( float3 rayOrigin, float3 rayDirection, texture2d<float> env
         color += wireframeColor * 0.5 * exp(-0.05 * intersectionDistance * intersectionDistance);
     }
 
-    // Outer glow effect for objects
+    // Outer glow effect
     if (dot(rayDirection, returnSPH_Earth().xyz - rayOrigin) > 0.0) {
         float distance = sphereSurfaceDistance_Earth(rayOrigin, rayDirection, returnSPH_Earth());
         float3 glow = float3(0.0);
@@ -303,7 +303,7 @@ float3 render_Earth( float3 rayOrigin, float3 rayDirection, texture2d<float> env
         glow += 0.6 * float3(0.8, 0.9, 1.0) * 0.4 * exp(-100.0 * abs(distance));
         color += glow * 1.5;
     }
-    // Apply time-based fading to the color
+    // time-based fading to the color
     color *= smoothstep(0.0, 6.0, time);
 
     return color;
